@@ -4,24 +4,36 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.coordinates import match_coordinates_sky
 from astropy.io import fits
+from astropy.cosmology import Planck18 as cosmo
 
 # Define a function to cross-match FRB sources with a galaxy cluster catalog
-def cross_match_frb_with_clusters(frb_sources, cluster_catalog, thresh_arcmin=30.0):
+def cross_match_frb_with_clusters(frb_sources, cluster_catalog, thresh_bperp_mpc=2.0):
     if cluster_catalog is None:
         return None
     # Create SkyCoord objects for FRB sources and cluster catalog
     frb_coords = SkyCoord(ra=frb_sources['ra'], dec=frb_sources['dec'], unit=(u.deg, u.deg))
     cluster_coords = SkyCoord(ra=cluster_catalog['ra'], dec=cluster_catalog['dec'], unit=(u.deg, u.deg))
 
-    # Perform the cross-match
-    idx, sep, _ = match_coordinates_sky(frb_coords, cluster_coords)
+    # Calculate the angular diameter distance to each FRB source and cluster
+    D_A_clust = cosmo.angular_diameter_distance(cluster_catalog['redshift']).values
+    D_A_frb = cosmo.angular_diameter_distance(np.abs(frb_sources['redshift'])).values
+    clust_ind_match = []
+    frb_ind_match = []
+    bperp_match_arr = []
 
-    frb_ind_match = np.where(sep < thresh_arcmin*u.arcmin)[0]
+    for ii in range(len(frb_coords)):
+        sep_rad = frb_coords[ii].separation(cluster_coords).rad
+        bperp = sep_rad * D_A_clust
+        
+        # Find indexes that are within 2 Mpc of an FRB sightline
+        clust_ind_match_ii = np.where((bperp.value < thresh_bperp_mpc) & (D_A_clust < 1.1 * D_A_frb[ii]))[0]
 
-    # Filter clusters that are within a certain angular separation threshold (e.g., 1 arcmin)
-    matching_clusters = cluster_catalog.iloc[idx[frb_ind_match]]
+        if len(clust_ind_match_ii) > 0:
+            clust_ind_match.append(clust_ind_match_ii)
+            frb_ind_match.append(ii)
+            bperp_match_arr.append(bperp[clust_ind_match_ii].value)
 
-    return matching_clusters, idx, sep, frb_ind_match
+    return clust_ind_match, frb_ind_match, bperp_match_arr
 
 def read_legacy():
     pass
@@ -100,6 +112,29 @@ def read_WHY_clustercat(fndir):
 
     return df_1, df_2, df_3
 
+def read_xclass(fn_xclass='./Xclass_cat.fit'):
+    f = fits.open(fn_xclass)
+    data = f[1].data
+
+    ra, dec, redshift = [], [], []
+
+    for ii in range(len(data)):
+        # Example line: 'names':['XClass','RAJ2000','DEJ2000','RAmdeg','DEmdeg','z','f_z','MLdet']
+        # (20, 193.438, 10.1954, 193.438, 10.1951, 0.654, '  confirmed', 360.664)
+        ra.append(data[ii][3])
+        dec.append(data[ii][4])
+        redshift.append(data[ii][5])
+
+    data = {
+        'ra': np.array(ra).astype(float),
+        'dec': np.array(dec).astype(float),
+        'redshift': np.array(redshift).astype(float)
+    }
+
+    df = pd.DataFrame(data)
+
+    return df
+
 def read_ROSAT(fn_ROSAT='table_rxgcc.fits'):
     # https://www.aanda.org/articles/aa/abs/2022/02/aa40908-21/aa40908-21.html
     f = fits.open(fn_ROSAT)
@@ -145,18 +180,20 @@ def cross_match_all(fn_frb):
     # WHY
     fndir = '/Users/liamconnor/work/projects/baryons/data/WHY_cluster_cat/'
     WHY_cat_1, WHY_cat_2, WHY_cat_3 = read_WHY_clustercat(fndir)
-    matching_clusters = cross_match_frb_with_clusters(frb_sources, WHY_cat_1)
-    print('Number of FRB sources matched with WHY clusters: {}'.format(len(matching_clusters)))
-    matching_clusters = cross_match_frb_with_clusters(frb_sources, WHY_cat_2)
-    print('Number of FRB sources matched with WHY clusters: {}'.format(len(matching_clusters)))
-    matching_clusters = cross_match_frb_with_clusters(frb_sources, WHY_cat_3)
-    print('Number of FRB sources matched with WHY clusters: {}'.format(len(matching_clusters)))
+    clust_ind_match, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_1)
+    print('FRB sources matched with WHY cat 1: {}'.format(len(matching_clusters)))
+    clust_ind_match_WHY_1, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_2)
+    print(frb_sources.iloc[frb_ind_match])
+#    matching_clusters = cross_match_frb_with_clusters(frb_sources, WHY_cat_3)
+#    print('Number of FRB sources matched with WHY clusters: {}'.format(len(matching_clusters)))
+
+
 
     # ROSAT
     fn_ROSAT = '/Users/liamconnor/work/projects/baryons/data/RXGCC_cluster_cat/table_rxgcc.fits'
     ROSAT_clusters = read_ROSAT(fn_ROSAT)
-    matching_clusters, idx, sep, frb_ind_match = cross_match_frb_with_clusters(frb_sources, ROSAT_clusters)
-    print('Number of FRB sources matched with ROSAT clusters: {}'.format(len(matching_clusters)))
+    clust_ind_match_ROSAT, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, ROSAT_clusters)
+    print(frb_sources.iloc[frb_ind_match])
 
     # Legacy
     fn_legacy = '/Users/kim/Research/FRB/FRB_catalogs/legacy/legacy_cluster_catalog.csv'

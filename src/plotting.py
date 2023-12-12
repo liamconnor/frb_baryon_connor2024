@@ -15,16 +15,20 @@ def plot_dmexcess_halos(frb_sources):
     dmdsa = dmdsa[ind]
     coeff = 850.
     dmhost = 150.
-    dmhalo = 30.
+    dmhalo = 20.
     dmmean = (coeff * zdsa)
     dmexcess_frac = (dmdsa - dmhalo - dmhost * (zdsa + 1)**-1)/dmmean
     frb_sources = frb_sources.iloc[ind]
 
-    ind_host_names = ['zach', 'ansel', 'etienne', 'ada', 'ayo', 'leonidas']
-    ind_halo_names = ['elektra', 'jackie', 'mifanshan']
+    ind_host_names = ['ansel', 'etienne', 'ada', 
+                      'ayo', 'leonidas', 'ferb', 'phineas', 
+                      'fatima', 'martha', 'alex']
+    ind_halo_names = ['elektra', 'jackie', 'mifanshan', 'nihari']
     ind_hostdm = np.where(frb_sources['name'].isin(ind_host_names))[0]
     ind_halodm = np.where(frb_sources['name'].isin(ind_halo_names))[0]
     ind_neither = range(len(zdsa))
+
+    c1, c2, c3 = 'lavender', 'palegoldenrod', 'lightsalmon' # lemonchiffon
 
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111)
@@ -32,11 +36,11 @@ def plot_dmexcess_halos(frb_sources):
     ax.plot(zmod, 1 + 5 * np.exp(-2*zmod), color='k', linestyle='--', linewidth=3, zorder=2)
     ax.plot(zmod, 1 - 1.5 * np.exp(-2*zmod), color='k', linestyle='--', linewidth=3, zorder=3)
     ax.scatter(zdsa[ind_neither], dmexcess_frac[ind_neither], zorder=4,
-               s=100, color='lavender', edgecolors='k', label='DSA-110 FRBs', alpha=1)
+               s=100, color=c1, edgecolors='k', label='DSA-110 FRBs', alpha=1)
     ax.scatter(zdsa[ind_hostdm], dmexcess_frac[ind_hostdm], zorder=5,
-               s=100, color='lemonchiffon', edgecolors='k', label='Large host RM', alpha=1)
+               s=100, color=c2, edgecolors='k', label='Large host RM', alpha=1)
     ax.scatter(zdsa[ind_halodm], dmexcess_frac[ind_halodm], zorder=6,
-               s=100, color='lightsalmon', edgecolors='k', label='Massive halo DM')
+               s=100, color=c3, edgecolors='k', label='Massive group / Cluster')
     ax.legend()
     ax.grid('on', alpha=0.5, linestyle='--')
     ax.set_xlabel('Redshift', fontsize=18)
