@@ -28,15 +28,45 @@ def cross_match_frb_with_clusters(frb_sources, cluster_catalog, thresh_bperp_mpc
         # Find indexes that are within 2 Mpc of an FRB sightline
         clust_ind_match_ii = np.where((bperp.value < thresh_bperp_mpc) & (D_A_clust < 1.1 * D_A_frb[ii]))[0]
 
-        if len(clust_ind_match_ii) > 0:
-            clust_ind_match.append(clust_ind_match_ii)
+        if len(clust_ind_match_ii) == 0:
+            continue
+        elif len(clust_ind_match_ii) == 1:
+            clust_ind_match.append(clust_ind_match_ii[0])
             frb_ind_match.append(ii)
-            bperp_match_arr.append(bperp[clust_ind_match_ii].value)
+            bperp_match_arr.append(bperp[clust_ind_match_ii[0]].value)
+        elif len(clust_ind_match_ii) > 1:
+            for nn in range(len(clust_ind_match_ii)):
+                clust_ind_match.append(clust_ind_match_ii[nn])
+                frb_ind_match.append(ii)
+                bperp_match_arr.append(bperp[clust_ind_match_ii[nn]].value)
+
 
     return clust_ind_match, frb_ind_match, bperp_match_arr
 
-def read_legacy():
-    pass
+def read_legacy(fn_legacy, logM_min=13):
+    d = np.load(fn_legacy)
+    ind_logM = np.where(d[5] > logM_min)[0]
+    group_idx, richness, ragr, decgr, zgr, logMgr, Lgr = d[0, ind_logM],\
+                                                         d[1, ind_logM],\
+                                                         d[2, ind_logM],\
+                                                         d[3, ind_logM],\
+                                                         d[4, ind_logM],\
+                                                         d[5, ind_logM],\
+                                                         d[6, ind_logM]
+
+    data = {
+        'name': group_idx,
+        'ra': ragr,
+        'dec': decgr,
+        'redshift': zgr,
+        'logM': logMgr,
+        'richness': richness,
+
+    }
+
+    df = pd.DataFrame(data)
+
+    return df
 
 def cross_match_Legacy(frb_sources, fn_legacy):
     pass 
@@ -113,6 +143,11 @@ def read_WHY_clustercat(fndir):
     return df_1, df_2, df_3
 
 def read_xclass(fn_xclass='./Xclass_cat.fit'):
+    """ Read in the XClass catalog and return a pandas DataFrame
+    
+    Catalog paper: https://www.aanda.org/articles/aa/full_html/2021/08/aa40566-21/aa40566-21.html
+
+    """
     f = fits.open(fn_xclass)
     data = f[1].data
 
@@ -132,11 +167,43 @@ def read_xclass(fn_xclass='./Xclass_cat.fit'):
     }
 
     df = pd.DataFrame(data)
+    ind_keep = np.where(df['redshift'] != 0)[0]
+
+    return df.iloc[ind_keep]
+
+def read_MCXC(fn_mcxc='mcxc.fits'):
+    f = fits.open(fn_mcxc)
+    data = f[1].data
+
+    ra, dec, redshift = [], [], []
+
+    for i in range(len(data)):
+        ra_str = data[i][2]
+        dec_str = data[i][3]
+
+        ra_deg = 15 * (float(ra_str[0:2]) + float(ra_str[3:5])/60. + float(ra_str[6:])/3600.)
+        dec_deg = np.sign(float(dec_str[0:3])) * (np.abs(float(dec_str[0:3])) + 
+                                                  float(dec_str[4:6])/60. + 
+                                                  float(dec_str[7:])/3600.)
+
+        ra.append(ra_deg)
+        dec.append(dec_deg)
+        redshift.append(data[i][4])
+
+    data = {
+        'ra': ra,
+        'dec': dec,
+        'redshift': redshift
+    }
+
+    df = pd.DataFrame(data)
 
     return df
 
 def read_ROSAT(fn_ROSAT='table_rxgcc.fits'):
-    # https://www.aanda.org/articles/aa/abs/2022/02/aa40908-21/aa40908-21.html
+    """ Read in the ROSAT catalog and return a pandas DataFrame
+    https://www.aanda.org/articles/aa/abs/2022/02/aa40908-21/aa40908-21.html
+    """
     f = fits.open(fn_ROSAT)
     data = f[1].data
 
@@ -166,6 +233,8 @@ def read_frb_catalog(fn_frb):
 
     return frb_sources
 
+def create_frbcluster_dataframe():
+
 def cross_match_all(fn_frb):
     fn_frb='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
 
@@ -180,14 +249,17 @@ def cross_match_all(fn_frb):
     # WHY
     fndir = '/Users/liamconnor/work/projects/baryons/data/WHY_cluster_cat/'
     WHY_cat_1, WHY_cat_2, WHY_cat_3 = read_WHY_clustercat(fndir)
-    clust_ind_match, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_1)
-    print('FRB sources matched with WHY cat 1: {}'.format(len(matching_clusters)))
-    clust_ind_match_WHY_1, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_2)
+    clust_ind_match_WHY_1, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_1)
+    print(frb_sources.iloc[frb_ind_match])
+    clust_ind_match_WHY_2, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_2)
     print(frb_sources.iloc[frb_ind_match])
 #    matching_clusters = cross_match_frb_with_clusters(frb_sources, WHY_cat_3)
 #    print('Number of FRB sources matched with WHY clusters: {}'.format(len(matching_clusters)))
 
-
+    fn_mcxc = '/Users/liamconnor/work/projects/baryons/data/MCXC/mcxc.fits'
+    MCXC_clusters = read_MCXC(fn_mcxc)
+    clust_ind_match_MCXC, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, MCXC_clusters)
+    print(frb_sources.iloc[frb_ind_match])
 
     # ROSAT
     fn_ROSAT = '/Users/liamconnor/work/projects/baryons/data/RXGCC_cluster_cat/table_rxgcc.fits'
@@ -195,8 +267,15 @@ def cross_match_all(fn_frb):
     clust_ind_match_ROSAT, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, ROSAT_clusters)
     print(frb_sources.iloc[frb_ind_match])
 
-    # Legacy
-    fn_legacy = '/Users/kim/Research/FRB/FRB_catalogs/legacy/legacy_cluster_catalog.csv'
-    legacy_clusters = read_legacy(fn_legacy)
-    matching_clusters = cross_match_frb_with_clusters(frb_sources, legacy_clusters)
-    print('Number of FRB sources matched with Legacy clusters: {}'.format(len(matching_clusters)))
+    # XClass
+    fn_xclass = '/Users/liamconnor/work/projects/baryons/data/xclass/Xclass_cat.fit'
+    xclass_clusters = read_xclass(fn_xclass)
+    _ = cross_match_frb_with_clusters(frb_sources, xclass_clusters)
+    clust_ind_match_xclass, frb_ind_match, bperp_match_arr = _
+    print(frb_sources.iloc[frb_ind_match])
+
+    # Legacy 'DESIDR9_NGC_group_12p5Msun.npy'
+    fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_NGC_group_12p5Msun.npy'
+    legacy_clusters = read_legacy(fn_legacy, logM_min=14)
+    clust_ind_match_legacy, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, legacy_clusters)
+    print(frb_sources.iloc[frb_ind_match])
