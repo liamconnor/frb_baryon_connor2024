@@ -68,7 +68,7 @@ def plot_dmexcess_halos_nondsa(frb_sources):
     frb_sources = frb_sources.iloc[ind]
 
     ind_host_names = ['FRB20190520B', 'FRB20121102A', 'FRB20201124A']
-    ind_halo_names = ['FRB20190520B', 'FRB20220610A', 'FRB20211127I']
+    ind_halo_names = ['FRB20190520B', 'FRB20220610A', 'FRB20211127I', 'FRB20200906A']
     ind_hostdm = np.where(frb_sources['name'].isin(ind_host_names))[0]
     ind_halodm = np.where(frb_sources['name'].isin(ind_halo_names))[0]
     ind_neither = range(len(zdsa))
