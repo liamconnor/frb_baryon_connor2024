@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-from astropy.coordinates import match_coordinates_sky
 from astropy.io import fits
 from astropy.cosmology import Planck18 as cosmo
 
@@ -11,43 +10,52 @@ from astropy.cosmology import Planck18 as cosmo
 def cross_match_frb_with_clusters(frb_sources, cluster_catalog, thresh_bperp_mpc=2.0):
     if cluster_catalog is None:
         return None
-    # Create SkyCoord objects for FRB sources and cluster catalog
-    frb_coords = SkyCoord(ra=frb_sources['ra'], dec=frb_sources['dec'], unit=(u.deg, u.deg))
-    cluster_coords = SkyCoord(ra=cluster_catalog['ra'], 
-                              dec=cluster_catalog['dec'], 
-                              unit=(u.deg, u.deg))
 
-    # Calculate the angular diameter distance to each FRB source and cluster
-    D_A_clust = cosmo.angular_diameter_distance(cluster_catalog['redshift']).values
-    D_A_frb = cosmo.angular_diameter_distance(np.abs(frb_sources['redshift'])).values
+    D_A_frb = cosmo.angular_diameter_distance(np.abs(frb_sources['redshift'].values)).value
+
     clust_ind_match = []
     frb_ind_match = []
     bperp_match_arr = []
+    in_footprint = []
 
-    for ii in range(len(frb_coords)):
-        sep_rad = frb_coords[ii].separation(cluster_coords).rad
-        bperp = sep_rad * D_A_clust
+    for ii in range(len(frb_sources)):
+        dra = np.abs(frb_sources['ra'].iloc[ii] - cluster_catalog['ra'])
+        ddec = np.abs(frb_sources['dec'].iloc[ii] - cluster_catalog['dec'])
+        sep_deg = np.sqrt(dra**2 * np.cos(np.deg2rad(frb_sources['dec'].iloc[ii]))**2 + ddec**2)
+
+        # Get cluster indexes that are within 5 deg of the FRB sightline
+        ind_close = np.where(sep_deg < 5.0)[0]
+
+        if np.min(sep_deg) > 2.0:
+            continue
+        else:
+            in_footprint.append(ii)
+
+        # Calculate the angular diameter distance to each FRB source and cluster
+        print(cosmo.angular_diameter_distance(cluster_catalog['redshift'].iloc[ind_close].values))
+        D_A_clust = cosmo.angular_diameter_distance(cluster_catalog['redshift'].iloc[ind_close].values).value
+
+        bperp = np.pi / 180. * sep_deg[ind_close].values * D_A_clust
         
         # Find indexes that are within 2 Mpc of an FRB sightline
-        clust_ind_match_ii = np.where((bperp.value < thresh_bperp_mpc) \
-                                      & (D_A_clust < 1.1 * D_A_frb[ii]))[0]
+        print(D_A_clust, D_A_frb[ii])
+        clust_ind_match_ii = np.where((bperp < thresh_bperp_mpc) & (D_A_clust < 1.1 * D_A_frb[ii]))[0]
 
         if len(clust_ind_match_ii) == 0:
             continue
         elif len(clust_ind_match_ii) == 1:
-            clust_ind_match.append(clust_ind_match_ii[0])
+            clust_ind_match.append(ind_close[clust_ind_match_ii[0]])
             frb_ind_match.append(ii)
-            bperp_match_arr.append(bperp[clust_ind_match_ii[0]].value)
+            bperp_match_arr.append(bperp[clust_ind_match_ii[0]])
         elif len(clust_ind_match_ii) > 1:
             for nn in range(len(clust_ind_match_ii)):
-                clust_ind_match.append(clust_ind_match_ii[nn])
+                clust_ind_match.append(ind_close[clust_ind_match_ii[nn]])
                 frb_ind_match.append(ii)
-                bperp_match_arr.append(bperp[clust_ind_match_ii[nn]].value)
+                bperp_match_arr.append(bperp[clust_ind_match_ii[nn]])
 
+    return clust_ind_match, frb_ind_match, bperp_match_arr, in_footprint
 
-    return clust_ind_match, frb_ind_match, bperp_match_arr
-
-def read_legacy(fn_legacy, logM_min=13):
+def read_legacy(fn_legacy, logM_min=13.5):
     d = np.load(fn_legacy)
     ind_logM = np.where(d[5] > logM_min)[0]
     group_idx, richness, ragr, decgr, zgr, logMgr, Lgr = d[0, ind_logM],\
@@ -63,7 +71,7 @@ def read_legacy(fn_legacy, logM_min=13):
         'ra': ragr,
         'dec': decgr,
         'redshift': zgr,
-        'logM': logMgr,
+        'm500': 10**logMgr,
         'richness': richness,
             }
 
@@ -195,7 +203,7 @@ def read_MCXC(fn_mcxc='mcxc.fits'):
         dec.append(dec_deg)
         redshift.append(data[i][4])
         names.append(data[i][0])
-        m500.append(data[i][6])
+        m500.append(data[i][6]*1e14)
         r500.append(data[i][7])
 
     data = {
@@ -248,12 +256,30 @@ def read_frb_catalog(fn_frb):
 
     return frb_sources
 
-def create_frbcluster_dataframe():
+def create_frbcluster_dataframe(frb_sources_match, 
+                                cluster_sources_match, 
+                                bperp_match_arr):
+
+    data = {
+        'frb_name': frb_sources_match['name'],
+        'frb_ra': frb_sources_match['ra'],
+        'frb_dec': frb_sources_match['dec'],   
+        'frb_redshift': frb_sources_match['redshift'],
+        'frb_dm_exgal': frb_sources_match['dm_exgal'],
+        'cluster_name': cluster_sources_match['name'],
+        'cluster_ra': cluster_sources_match['ra'],
+        'cluster_dec': cluster_sources_match['dec'],
+        'cluster_redshift': cluster_sources_match['redshift'],
+        'cluster_m500': cluster_sources_match['m500'],
+        'cluster_r500_mpc': cluster_sources_match['r500_mpc'],
+        'b_perp_mpc': bperp_match_arr,
+    }
+
     pass
 
 def cross_match_all(fn_frb):
     fn_frb_dsa='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
-    fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/nondsa_frbs_nov2023.csv'
+    fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
 
     frb_sources_dsa = read_frb_catalog(fn_frb_dsa)
     frb_sources = read_frb_catalog(fn_frb_nondsa)
@@ -297,7 +323,9 @@ def cross_match_all(fn_frb):
     print(frb_sources.iloc[frb_ind_match])
 
     # Legacy 'DESIDR9_NGC_group_12p5Msun.npy'
-    fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_NGC_group_12p5Msun.npy'
-    legacy_clusters = read_legacy(fn_legacy, logM_min=14)
-    clust_ind_match_legacy, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, legacy_clusters)
+    fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_allsky_group_12p5Msun.npy'
+    legacy_clusters = read_legacy(fn_legacy, logM_min=13.5)
+    clust_ind_match_legacy, frb_ind_match, bperp_match_arr, in_footprint = cross_match_frb_with_clusters(frb_sources, legacy_clusters)
     print(frb_sources.iloc[frb_ind_match])
+    print(legacy_clusters.iloc[clust_ind_match_legacy])
+    print(bperp_match_arr)
