@@ -6,13 +6,16 @@ from astropy.coordinates import match_coordinates_sky
 from astropy.io import fits
 from astropy.cosmology import Planck18 as cosmo
 
+
 # Define a function to cross-match FRB sources with a galaxy cluster catalog
 def cross_match_frb_with_clusters(frb_sources, cluster_catalog, thresh_bperp_mpc=2.0):
     if cluster_catalog is None:
         return None
     # Create SkyCoord objects for FRB sources and cluster catalog
     frb_coords = SkyCoord(ra=frb_sources['ra'], dec=frb_sources['dec'], unit=(u.deg, u.deg))
-    cluster_coords = SkyCoord(ra=cluster_catalog['ra'], dec=cluster_catalog['dec'], unit=(u.deg, u.deg))
+    cluster_coords = SkyCoord(ra=cluster_catalog['ra'], 
+                              dec=cluster_catalog['dec'], 
+                              unit=(u.deg, u.deg))
 
     # Calculate the angular diameter distance to each FRB source and cluster
     D_A_clust = cosmo.angular_diameter_distance(cluster_catalog['redshift']).values
@@ -26,7 +29,8 @@ def cross_match_frb_with_clusters(frb_sources, cluster_catalog, thresh_bperp_mpc
         bperp = sep_rad * D_A_clust
         
         # Find indexes that are within 2 Mpc of an FRB sightline
-        clust_ind_match_ii = np.where((bperp.value < thresh_bperp_mpc) & (D_A_clust < 1.1 * D_A_frb[ii]))[0]
+        clust_ind_match_ii = np.where((bperp.value < thresh_bperp_mpc) \
+                                      & (D_A_clust < 1.1 * D_A_frb[ii]))[0]
 
         if len(clust_ind_match_ii) == 0:
             continue
@@ -61,8 +65,7 @@ def read_legacy(fn_legacy, logM_min=13):
         'redshift': zgr,
         'logM': logMgr,
         'richness': richness,
-
-    }
+            }
 
     df = pd.DataFrame(data)
 
@@ -172,10 +175,12 @@ def read_xclass(fn_xclass='./Xclass_cat.fit'):
     return df.iloc[ind_keep]
 
 def read_MCXC(fn_mcxc='mcxc.fits'):
+    """ Read in the MCXC catalog and return a pandas DataFrame
+    """
     f = fits.open(fn_mcxc)
     data = f[1].data
 
-    ra, dec, redshift = [], [], []
+    ra, dec, redshift, names, m500, r500 = [], [], [], [], [], []
 
     for i in range(len(data)):
         ra_str = data[i][2]
@@ -189,11 +194,17 @@ def read_MCXC(fn_mcxc='mcxc.fits'):
         ra.append(ra_deg)
         dec.append(dec_deg)
         redshift.append(data[i][4])
+        names.append(data[i][0])
+        m500.append(data[i][6])
+        r500.append(data[i][7])
 
     data = {
+        'name' : names,
         'ra': ra,
         'dec': dec,
-        'redshift': redshift
+        'redshift': redshift,
+        'm500': m500,
+        'r500_mpc': r500,
     }
 
     df = pd.DataFrame(data)
@@ -207,17 +218,21 @@ def read_ROSAT(fn_ROSAT='table_rxgcc.fits'):
     f = fits.open(fn_ROSAT)
     data = f[1].data
 
-    ra, dec, redshift = [], [], []
+    ra, dec, redshift, m500, r500 = [], [], [], [], []
 
     for i in range(len(data)):
         ra.append(data[i][1])
         dec.append(data[i][2])
         redshift.append(data[i][5])
+        m500.append(data[i][-13]*1e14)
+        r500.append(data[i][14])
 
     data = { 
         'ra': ra,
         'dec': dec,
-        'redshift': redshift
+        'redshift': redshift,
+        'm500': m500,
+        'r500_mpc': r500,
     }
 
     df = pd.DataFrame(data)
@@ -234,11 +249,14 @@ def read_frb_catalog(fn_frb):
     return frb_sources
 
 def create_frbcluster_dataframe():
+    pass
 
 def cross_match_all(fn_frb):
-    fn_frb='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
+    fn_frb_dsa='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
+    fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/nondsa_frbs_nov2023.csv'
 
-    frb_sources = read_frb_catalog(fn_frb)
+    frb_sources_dsa = read_frb_catalog(fn_frb_dsa)
+    frb_sources = read_frb_catalog(fn_frb_nondsa)
 
     # PSZ2
     fn_PSZ2 = '/Users/kim/Research/FRB/FRB_catalogs/PSZ2/PSZ2v1.fits'
@@ -260,12 +278,16 @@ def cross_match_all(fn_frb):
     MCXC_clusters = read_MCXC(fn_mcxc)
     clust_ind_match_MCXC, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, MCXC_clusters)
     print(frb_sources.iloc[frb_ind_match])
+    print(MCXC_clusters.iloc[clust_ind_match_MCXC])
+    print(bperp_match_arr)
 
     # ROSAT
     fn_ROSAT = '/Users/liamconnor/work/projects/baryons/data/RXGCC_cluster_cat/table_rxgcc.fits'
     ROSAT_clusters = read_ROSAT(fn_ROSAT)
     clust_ind_match_ROSAT, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, ROSAT_clusters)
     print(frb_sources.iloc[frb_ind_match])
+    print(ROSAT_clusters.iloc[clust_ind_match_ROSAT])
+    print(bperp_match_arr)
 
     # XClass
     fn_xclass = '/Users/liamconnor/work/projects/baryons/data/xclass/Xclass_cat.fit'
