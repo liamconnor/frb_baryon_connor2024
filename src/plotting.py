@@ -27,7 +27,7 @@ def plot_dmexcess_halos_dsa(frb_sources):
                       'ayo', 'leonidas', 'ferb', 'phineas', 
                       'fatima', 'martha', 'alex']
     
-    ind_halo_names = ['elektra', 'jackie', 'mifanshan', 'nihari', 'pingu']
+    ind_halo_names = ['elektra', 'jackie', 'mifanshan', 'nihari', 'ferb', 'phineas', 'tildis']
     ind_hostdm = np.where(frb_sources['name'].isin(ind_host_names))[0]
     ind_halodm = np.where(frb_sources['name'].isin(ind_halo_names))[0]
     ind_neither = range(len(zdsa))
