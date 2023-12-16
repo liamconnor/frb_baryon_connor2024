@@ -173,7 +173,18 @@ def read_PSZ2(fn_PSZ2):
     return df
 
 def read_WHY_clustercat(fndir):
+    """ Read in the WHY cluster catalog and return a pandas DataFrame
 
+    Parameters
+    ----------
+    fndir : str
+        Directory containing the WHY cluster catalog
+    
+    Returns
+    -------
+    df_1 : pandas DataFrame
+        DataFrame containing WHY cluster catalog 1
+    """
     fn_1 = fndir + '/table1.dat'
     fn_2 = fndir + '/table2.dat'
     fn_3 = fndir + '/table3.dat'
@@ -242,6 +253,15 @@ def read_xclass(fn_xclass='./Xclass_cat.fit'):
     
     Catalog paper: https://www.aanda.org/articles/aa/full_html/2021/08/aa40566-21/aa40566-21.html
 
+    Parameters
+    ----------
+    fn_xclass : str
+        Filename of the XClass catalog
+    
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame containing XClass clusters
     """
     f = fits.open(fn_xclass)
     data = f[1].data
@@ -272,6 +292,16 @@ def read_xclass(fn_xclass='./Xclass_cat.fit'):
 
 def read_MCXC(fn_mcxc='mcxc.fits'):
     """ Read in the MCXC catalog and return a pandas DataFrame
+
+    Parameters
+    ----------
+    fn_mcxc : str
+        Filename of the MCXC catalog
+    
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame containing MCXC clusters
     """
     f = fits.open(fn_mcxc)
     data = f[1].data
@@ -310,6 +340,16 @@ def read_MCXC(fn_mcxc='mcxc.fits'):
 def read_ROSAT(fn_ROSAT='table_rxgcc.fits'):
     """ Read in the ROSAT catalog and return a pandas DataFrame
     https://www.aanda.org/articles/aa/abs/2022/02/aa40908-21/aa40908-21.html
+
+    Parameters
+    ----------
+    fn_ROSAT : str
+        Filename of the ROSAT catalog
+
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame containing ROSAT clusters
     """
     f = fits.open(fn_ROSAT)
     data = f[1].data
@@ -337,10 +377,9 @@ def read_ROSAT(fn_ROSAT='table_rxgcc.fits'):
 
     return df
 
-def cross_match_ROSAT(frb_sources, fn_ROSAT):
-    pass
-
 def read_frb_catalog(fn_frb):
+    """ Read in the FRB catalog and return a pandas DataFrame
+    """
     # Index(['name', 'mjd', 'snr_heim', 'dm_heim', 'dm_opt', 'dm_exgal', 'ibox', 'redshift', 'ra', 'dec']
     frb_sources = pd.read_csv(fn_frb, delim_whitespace=False)
 
@@ -349,6 +388,22 @@ def read_frb_catalog(fn_frb):
 def create_frbcluster_dataframe(frb_sources_match, 
                                 cluster_sources_match, 
                                 bperp_match_arr):
+    """ Create a pandas DataFrame containing matched FRB-cluster pairs
+
+    Parameters
+    ----------
+    frb_sources_match : pandas DataFrame
+        DataFrame containing matched FRB sources
+    cluster_sources_match : pandas DataFrame
+        DataFrame containing matched cluster sources
+    bperp_match_arr : list
+        List of impact parameters for each FRB-cluster match (Mpc)
+
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame containing matched FRB-cluster pairs
+    """
     
     if len(frb_sources_match) != len(cluster_sources_match):
         print('Error: FRB and cluster catalogs are not the same length')
@@ -375,6 +430,18 @@ def create_frbcluster_dataframe(frb_sources_match,
     return df 
 
 def read_CHIME(fn_CHIME):
+    """ Read in the CHIME catalog and return a pandas DataFrame
+
+    Parameters
+    ----------
+    fn_CHIME : str
+        Filename of the CHIME catalog
+
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame containing CHIME FRB sources
+    """
     datapd = pd.read_csv(fn_CHIME)
     ind = range(len(datapd))#np.where(datapd['repeater_name']=='-9999')[0]
     ra_ch, dec_ch = datapd['ra'][ind].values, datapd['dec'][ind].values
@@ -407,6 +474,20 @@ def read_CHIME(fn_CHIME):
 
 def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
     """ Cross match FRB sources with all cluster catalogs
+
+    Parameters
+    ----------
+    frb_sources : pandas DataFrame
+        DataFrame containing FRB sources
+    thresh_bperp_mpc : float
+        Maximum impact parameter to be considered a match in Mpc
+    cluster_zmax : float or None
+        Maximum redshift of clusters to consider
+
+    Returns
+    -------
+    match_dataframe : pandas DataFrame
+        DataFrame containing matched FRB-cluster pairs
     """
     match_dataframe = pd.DataFrame()
 
