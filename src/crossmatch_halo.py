@@ -7,8 +7,9 @@ from astropy.cosmology import Planck18 as cosmo
 
 
 # Define a function to cross-match FRB sources with a galaxy cluster catalog
-def cross_match_frb_with_clusters(frb_sources, cluster_catalog, 
-                                  thresh_bperp_mpc=1.5, cluster_zmax=None):
+def cross_match_frb_with_clusters(frb_sources, cluster_catalog,
+                                  thresh_bperp_mpc=1.5, 
+                                  cluster_zmax=None):
     if cluster_catalog is None:
         return None
     
@@ -59,7 +60,7 @@ def cross_match_frb_with_clusters(frb_sources, cluster_catalog,
                 frb_ind_match.append(ii)
                 bperp_match_arr.append(bperp[clust_ind_match_ii[nn]])
 
-    return clust_ind_match, frb_ind_match, bperp_match_arr, in_footprint
+    return cluster_catalog.iloc[clust_ind_match], frb_ind_match, bperp_match_arr, in_footprint
 
 def read_legacy(fn_legacy, logM_min=13.5):
     d = np.load(fn_legacy)
@@ -359,7 +360,7 @@ def read_CHIME(fn_CHIME):
 
     return df
 
-def cross_match_all(frb_sources, cluster_zmax=None):
+def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
     """ Cross match FRB sources with all cluster catalogs
     """
     match_dataframe = pd.DataFrame()
@@ -369,13 +370,15 @@ def cross_match_all(frb_sources, cluster_zmax=None):
     # PSZ2
     fn_PSZ2 = '/Users/liamconnor/work/projects/baryons/data/PSZ2_cat.fits'
     PSZ2_cat = read_PSZ2(fn_PSZ2)
-    _ = cross_match_frb_with_clusters(frb_sources, PSZ2_cat, cluster_zmax=cluster_zmax)
+    _ = cross_match_frb_with_clusters(frb_sources, PSZ2_cat, 
+                                      thresh_bperp_mpc=thresh_bperp_mpc, 
+                                      cluster_zmax=cluster_zmax)
 
-    clust_ind_match_PSZ2, frb_ind_match, bperp_match_arr, in_footprint = _
+    clust_match_PSZ2, frb_ind_match, bperp_match_arr, in_footprint = _
 
     match_dataframe_PSZ2 = create_frbcluster_dataframe(frb_sources.iloc[frb_ind_match], 
-                                PSZ2_cat.iloc[clust_ind_match_PSZ2], 
-                                bperp_match_arr)
+                                                    clust_match_PSZ2, 
+                                                    bperp_match_arr)
     match_dataframe = pd.concat([match_dataframe, match_dataframe_PSZ2], 
                                 ignore_index=True)
     
@@ -388,22 +391,20 @@ def cross_match_all(frb_sources, cluster_zmax=None):
         fndir = '/Users/liamconnor/work/projects/baryons/data/WHY_cluster_cat/'
         WHY_cat_1, WHY_cat_2, WHY_cat_3 = read_WHY_clustercat(fndir)
         clust_ind_match_WHY_1, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_1)
-        print(frb_sources.iloc[frb_ind_match])
-        print(WHY_cat_1.iloc[clust_ind_match_WHY_1])
-
         clust_ined_match_WHY_2, frb_ind_match, bperp_match_arr = cross_match_frb_with_clusters(frb_sources, WHY_cat_2)
-        print(frb_sources.iloc[frb_ind_match])
     except:
         pass
 
     # MCXC
     fn_mcxc = '/Users/liamconnor/work/projects/baryons/data/MCXC/mcxc.fits'
     MCXC_clusters = read_MCXC(fn_mcxc)
-    clust_ind_match_MCXC, frb_ind_match, bperp_match_arr, in_footprint = cross_match_frb_with_clusters(frb_sources, MCXC_clusters)
+    _ = cross_match_frb_with_clusters(frb_sources, MCXC_clusters, 
+                                      thresh_bperp_mpc, cluster_zmax)
+    clust_match_MCXC, frb_ind_match, bperp_match_arr, in_footprint = _
 
     match_dataframe_mcxc = create_frbcluster_dataframe(frb_sources.iloc[frb_ind_match], 
-                                MCXC_clusters.iloc[clust_ind_match_MCXC], 
-                                bperp_match_arr)
+                                                        clust_match_MCXC, 
+                                                        bperp_match_arr)
     
     match_dataframe = pd.concat([match_dataframe, match_dataframe_mcxc], 
                                 ignore_index=True)
@@ -415,14 +416,20 @@ def cross_match_all(frb_sources, cluster_zmax=None):
     # ROSAT
     fn_ROSAT = '/Users/liamconnor/work/projects/baryons/data/RXGCC_cluster_cat/table_rxgcc.fits'
     ROSAT_clusters = read_ROSAT(fn_ROSAT)
-    clust_ind_match_ROSAT, frb_ind_match, bperp_match_arr, in_footprint = cross_match_frb_with_clusters(frb_sources, 
-                                                                                                        ROSAT_clusters)
+
+    _ = cross_match_frb_with_clusters(frb_sources, 
+                                      ROSAT_clusters, 
+                                      thresh_bperp_mpc=thresh_bperp_mpc,
+                                      cluster_zmax=cluster_zmax)
+    clust_match_ROSAT, frb_ind_match, bperp_match_arr, in_footprint = _
+    
     match_dataframe_rosat = create_frbcluster_dataframe(frb_sources.iloc[frb_ind_match], 
-                                ROSAT_clusters.iloc[clust_ind_match_ROSAT], 
-                                bperp_match_arr)
+                                                        clust_match_ROSAT, 
+                                                        bperp_match_arr)
     
     match_dataframe = pd.concat([match_dataframe, match_dataframe_rosat], 
                                 ignore_index=True)
+    
     # Keep track of which FRBs are in the footprint of each catalog
     if len(in_footprint):
         in_footprint_total.append(in_footprint)
@@ -430,11 +437,16 @@ def cross_match_all(frb_sources, cluster_zmax=None):
     # XClass
     fn_xclass = '/Users/liamconnor/work/projects/baryons/data/xclass/Xclass_cat.fit'
     xclass_clusters = read_xclass(fn_xclass)
-    clust_ind_match_xclass, frb_ind_match, bperp_match_arr, in_footprint = cross_match_frb_with_clusters(frb_sources, 
-                                                                                                         xclass_clusters)
+    _ = cross_match_frb_with_clusters(frb_sources, 
+                                      xclass_clusters,
+                                      thresh_bperp_mpc=thresh_bperp_mpc,
+                                      cluster_zmax=cluster_zmax)
+    
+    clust_match_xclass, frb_ind_match, bperp_match_arr, in_footprint = _
+
     match_dataframe_xclass = create_frbcluster_dataframe(frb_sources.iloc[frb_ind_match], 
-                                xclass_clusters.iloc[clust_ind_match_xclass], 
-                                bperp_match_arr)
+                                                        clust_match_xclass, 
+                                                        bperp_match_arr)
     
     match_dataframe = pd.concat([match_dataframe, match_dataframe_xclass], 
                                 ignore_index=True)
@@ -445,14 +457,16 @@ def cross_match_all(frb_sources, cluster_zmax=None):
 
     # Legacy 'DESIDR9_NGC_group_12p5Msun.npy'
     fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_allsky_group_12p5Msun.npy'
-    legacy_clusters = read_legacy(fn_legacy, logM_min=13.5)
-    _ = cross_match_frb_with_clusters(frb_sources, legacy_clusters, cluster_zmax=0.3)
+    legacy_clusters = read_legacy(fn_legacy, logM_min=14.)
+    _ = cross_match_frb_with_clusters(frb_sources, legacy_clusters,
+                                      thresh_bperp_mpc=thresh_bperp_mpc,
+                                      cluster_zmax=cluster_zmax)
 
-    clust_ind_match_legacy, frb_ind_match, bperp_match_arr, in_footprint = _
+    clust_match_legacy, frb_ind_match, bperp_match_arr, in_footprint = _
     
     match_dataframe_legacy = create_frbcluster_dataframe(frb_sources.iloc[frb_ind_match], 
-                                legacy_clusters.iloc[clust_ind_match_legacy], 
-                                bperp_match_arr)
+                                                        clust_match_legacy, 
+                                                        bperp_match_arr)
     
     match_dataframe = pd.concat([match_dataframe, match_dataframe_legacy], 
                                 ignore_index=True)
@@ -476,7 +490,7 @@ frb_sources = read_CHIME(fn_CHIME)
 cluster_zmax = None
 cluster_zmax = 0.1
 
-match_dataframe, in_footprint = cross_match_all(frb_sources, cluster_zmax=0.1)
+match_dataframe, in_footprint = cross_match_all(frb_sources, cluster_zmax=None)
 
 # scatter(ROSAT_clusters['ra'], ROSAT_clusters['dec'], s=1, color='C0', label='ROSAT')
 # scatter(MCXC_clusters['ra'], MCXC_clusters['dec'], s=1, color='C1', label='MCXC')
