@@ -10,6 +10,30 @@ from astropy.cosmology import Planck18 as cosmo
 def cross_match_frb_with_clusters(frb_sources, cluster_catalog,
                                   thresh_bperp_mpc=1.5, 
                                   cluster_zmax=None):
+    """ Cross match FRB sources with a galaxy cluster catalog
+    
+    Parameters
+    ----------
+    frb_sources : pandas DataFrame
+        DataFrame containing FRB sources
+    cluster_catalog : pandas DataFrame
+        DataFrame containing galaxy cluster catalog
+    thresh_bperp_mpc : float
+        Maximum impact parameter in Mpc
+    cluster_zmax : float or None
+        Maximum redshift of clusters to consider
+
+    Returns
+    -------
+    cluster_catalog.iloc[clust_ind_match] : pandas DataFrame
+        DataFrame containing matched clusters
+    frb_ind_match : list
+        List of FRB indexes that match with clusters
+    bperp_match_arr : list
+        List of impact parameters for each FRB-cluster match
+    in_footprint : list
+        List of FRB indexes that are in the footprint of the cluster catalog
+    """
     if cluster_catalog is None:
         return None
     
@@ -63,6 +87,20 @@ def cross_match_frb_with_clusters(frb_sources, cluster_catalog,
     return cluster_catalog.iloc[clust_ind_match], frb_ind_match, bperp_match_arr, in_footprint
 
 def read_legacy(fn_legacy, logM_min=13.5):
+    """ Read in the Legacy catalog and return a pandas DataFrame
+
+    Parameters
+    ----------
+    fn_legacy : str
+        Filename of the Legacy catalog
+    logM_min : float
+        Minimum logM500 mass to consider
+    
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame containing Legacy clusters
+    """
     d = np.load(fn_legacy)
     ind_logM = np.where(d[5] > logM_min)[0]
     group_idx, richness, ragr, decgr, zgr, logMgr, Lgr = d[0, ind_logM],\
@@ -88,12 +126,19 @@ def read_legacy(fn_legacy, logM_min=13.5):
 
     return df
 
-def cross_match_Legacy(frb_sources, fn_legacy):
-    pass 
-
 def read_PSZ2(fn_PSZ2):
     """ Read in the PSZ2 catalog fits file 
     and return a pandas DataFrame
+
+    Parameters
+    ----------
+    fn_PSZ2 : str
+        Filename of the PSZ2 catalog
+    
+    Returns
+    -------
+    df : pandas DataFrame
+        DataFrame containing PSZ2 clusters
     """
     f = fits.open(fn_PSZ2)
 
@@ -480,17 +525,14 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
 fn_frb_dsa='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
 fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
 fn_CHIME='/Users/liamconnor/work/projects/frb/chime_cgm/data/chimefrbcat1.csv'
-fn_CHIME = 'CHIME/chime_basecat1_catalog.csv'
+#fn_CHIME = 'CHIME/chime_basecat1_catalog.csv'
 
 #frb_sources_dsa = read_frb_catalog(fn_frb_dsa)
 #frb_sources = read_frb_catalog(fn_frb_nondsa)
 
 frb_sources = read_CHIME(fn_CHIME)
-
-cluster_zmax = None
-cluster_zmax = 0.1
-
-match_dataframe, in_footprint = cross_match_all(frb_sources, cluster_zmax=None)
+frb_sources = frb_sources[frb_sources['redshift'] > 0.5]
+match_dataframe, in_footprint = cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=0.2)
 
 # scatter(ROSAT_clusters['ra'], ROSAT_clusters['dec'], s=1, color='C0', label='ROSAT')
 # scatter(MCXC_clusters['ra'], MCXC_clusters['dec'], s=1, color='C1', label='MCXC')
