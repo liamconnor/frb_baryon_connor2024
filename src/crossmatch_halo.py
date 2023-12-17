@@ -604,16 +604,18 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
     return match_dataframe, in_footprint
 
 fn_frb_dsa='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
-fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
-fn_CHIME='/Users/liamconnor/work/projects/frb/chime_cgm/data/chimefrbcat1.csv'
+#fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
+#fn_CHIME='/Users/liamconnor/work/projects/frb/chime_cgm/data/chimefrbcat1.csv'
 #fn_CHIME = 'CHIME/chime_basecat1_catalog.csv'
 
-#frb_sources_dsa = read_frb_catalog(fn_frb_dsa)
+frb_sources = read_frb_catalog(fn_frb_dsa)
 #frb_sources = read_frb_catalog(fn_frb_nondsa)
 
-frb_sources = read_CHIME(fn_CHIME)
-frb_sources = frb_sources[frb_sources['redshift'] > 0.5]
-match_dataframe, in_footprint = cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=0.2)
+#frb_sources = read_CHIME(fn_CHIME)
+#frb_sources = frb_sources[frb_sources['redshift'] > 0.5]
+match_dataframe, in_footprint = cross_match_all(frb_sources, 
+                                                thresh_bperp_mpc=1.5, 
+                                                cluster_zmax=None)
 
 # scatter(ROSAT_clusters['ra'], ROSAT_clusters['dec'], s=1, color='C0', label='ROSAT')
 # scatter(MCXC_clusters['ra'], MCXC_clusters['dec'], s=1, color='C1', label='MCXC')
