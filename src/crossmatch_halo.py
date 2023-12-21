@@ -574,7 +574,8 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
                                                         clust_match_xclass, 
                                                         bperp_match_arr)
     
-    match_dataframe = pd.concat([match_dataframe, match_dataframe_xclass], 
+    match_dataframe = pd.concat([match_dataframe, 
+                                 match_dataframe_xclass], 
                                 ignore_index=True)
 
     # Keep track of which FRBs are in the footprint of each catalog
@@ -594,7 +595,8 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
                                                         clust_match_legacy, 
                                                         bperp_match_arr)
     
-    match_dataframe = pd.concat([match_dataframe, match_dataframe_legacy], 
+    match_dataframe = pd.concat([match_dataframe, 
+                                 match_dataframe_legacy], 
                                 ignore_index=True)
     
     # Keep track of which FRBs are in the footprint of each catalog
@@ -604,7 +606,8 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
     return match_dataframe, in_footprint
 
 fn_frb_dsa='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
-#fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
+fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
+fn_frb_dsa = '/Users/liamconnor/Desktop/dsa110_frbs_dec23.csv'
 #fn_CHIME='/Users/liamconnor/work/projects/frb/chime_cgm/data/chimefrbcat1.csv'
 #fn_CHIME = 'CHIME/chime_basecat1_catalog.csv'
 

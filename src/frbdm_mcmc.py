@@ -252,7 +252,8 @@ def main(data, param_dict):
     return flat_samples 
 
 if __name__ == '__main__':
-    df = pd.read_csv('../data/dsafrbsnov23.csv', delim_whitespace=False)
+    fn_dsa = '../data/dsafrbsnov23.csv'
+    df = pd.read_csv(fn_dsa, delim_whitespace=False)
     zdsa = df['redshift'].values
     dmdsa = df['dm_exgal'].values
     ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.05))[0]
