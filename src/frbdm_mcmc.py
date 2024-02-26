@@ -21,7 +21,7 @@ from multiprocessing import Pool
 import numba as nb
 
 def generate_TNGparam_arr(zfrb):
-    TNGfits = np.load('TNGparameters.npy')
+    TNGfits = np.load('/home/connor/TNG300-1/TNGparameters.npy')
     nfrb = len(zfrb)
     arr = TNGfits
     tngparams_arr = np.zeros([nfrb, 6])
@@ -252,7 +252,7 @@ def main(data, param_dict):
     return flat_samples 
 
 if __name__ == '__main__':
-    fn_dsa = '../data/dsafrbsnov23.csv'
+    fn_dsa = '/home/connor/data/dsafrbs_feb2024.csv'
     df = pd.read_csv(fn_dsa, delim_whitespace=False)
     zdsa = df['redshift'].values
     dmdsa = df['dm_exgal'].values
