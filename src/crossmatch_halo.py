@@ -472,7 +472,8 @@ def read_CHIME(fn_CHIME):
 
     return df
 
-def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
+def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, 
+                    cluster_zmax=None, min_mass_legacy=14.):
     """ Cross match FRB sources with all cluster catalogs
 
     Parameters
@@ -584,7 +585,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5, cluster_zmax=None):
 
     # Legacy 'DESIDR9_NGC_group_12p5Msun.npy'
     fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_allsky_group_12p5Msun.npy'
-    legacy_clusters = read_legacy(fn_legacy, logM_min=14.)
+    legacy_clusters = read_legacy(fn_legacy, logM_min=min_mass_legacy)
     _ = cross_match_frb_with_clusters(frb_sources, legacy_clusters,
                                       thresh_bperp_mpc=thresh_bperp_mpc,
                                       cluster_zmax=cluster_zmax)
@@ -616,9 +617,10 @@ frb_sources = read_frb_catalog(fn_frb_dsa)
 
 #frb_sources = read_CHIME(fn_CHIME)
 #frb_sources = frb_sources[frb_sources['redshift'] > 0.5]
-match_dataframe, in_footprint = cross_match_all(frb_sources, 
-                                                thresh_bperp_mpc=1.5, 
-                                                cluster_zmax=None)
+match_dataframe, in_footprint = cross_match_all(frb_sources,
+                                                thresh_bperp_mpc=1.5,
+                                                cluster_zmax=None,
+                                                min_mass_legacy=12.5)
 
 # scatter(ROSAT_clusters['ra'], ROSAT_clusters['dec'], s=1, color='C0', label='ROSAT')
 # scatter(MCXC_clusters['ra'], MCXC_clusters['dec'], s=1, color='C1', label='MCXC')

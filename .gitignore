@@ -1,3 +1,5 @@
 *.npy
 *.hdf5
 *.h5
+*.pdf
+*.png
