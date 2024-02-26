@@ -488,3 +488,61 @@ def recreate_macquart20(plot_dsa=False):
         ax.legend(loc=2, fontsize=16)
         plt.savefig('macquart20.pdf', bbox_inches='tight')
 
+
+
+def plot_corner_gtc():
+    import pygtc
+
+    flat_samples1 = np.load('./flat_samples_11200steps_newcut.npy')
+    flat_samples2 = np.load('./flat_samples_25600steps_DSAonly.npy')
+
+    # List of parameter names, supports latex
+    # NOTE: For capital greek letters in latex mode, use \mathsf{}
+    names = [r'$f_{igm}$',r'$f_X$',r'$\mu$',r'$\sigma$']
+    #names = ['1', '2', '3', '4']
+
+
+    # Labels for the different chains
+    chainLabels = ["All FRBs", "DSA-110 only"]
+
+    # List of Gaussian curves to plot
+    #(to represent priors): mean, width
+    # Empty () or None if no prior to plot
+    priors = ((),
+            (),
+            (),
+            (),)
+
+    # List of truth values, to mark best-fit or input values
+    # NOT a python array because of different lengths
+    # Here we choose two sets of truth values
+    truths = ((4, .5, None, .1, 0, None, None, 0),
+            (None, None, .3, 1, None, None, None, None))
+
+    # Labels for the different truths
+    truthLabels = ( 'the truth',
+                'also true')
+
+    # Do the 
+    GTC = pygtc.plotGTC(chains=[flat_samples2[5000::3], flat_samples2[5000::3]],
+                        paramNames=names,
+                        chainLabels=chainLabels,
+    #                    truths=truths,
+    #                    truthLabels=truthLabels,
+                        priors=priors,
+                    customLabelFont={'size':18})
+
+for i in range(4):
+    mcmc = np.percentile(flat_samples2[1000::10, i], [16, 50, 84])
+    q = np.diff(mcmc)
+    txt = "\mathrm{{{3}}} = {0:.3f}_{{-{1:.3f}}}^{{{2:.3f}}}"
+    if i==2:
+        mu_h, mu_h_low, mu_h_up = mcmc[1], q[0], q[1]
+        txt = txt.format(mcmc[1], q[0], q[1], labels[i])
+    elif i==3:
+        sig_h = mcmc[1]
+        txt = txt.format(mcmc[1], q[0], q[1], labels[i])
+    else:
+        txt = txt.format(mcmc[1], q[0], q[1], labels[i])
+    display(Math(txt))
+    print(txt)

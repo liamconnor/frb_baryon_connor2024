@@ -1,8 +1,9 @@
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from multiprocessing import Pool
-
 
 import emcee
 from scipy.integrate import quad
@@ -21,6 +22,9 @@ from multiprocessing import Pool
 import numba as nb
 
 def generate_TNGparam_arr(zfrb):
+    """ Read in TNG300 parameter fits from Walker et al. 2023 
+    and interpolate to the redshifts of the FRBs
+    """
     TNGfits = np.load('/home/connor/TNG300-1/TNGparameters.npy')
     nfrb = len(zfrb)
     arr = TNGfits
@@ -89,7 +93,9 @@ def pdm_cosmic(dmhalo, dmigm, params, TNGparams):
 
 #@njit
 def pdm_product_numerical(dmhalo, dmigm, dmexgal, 
-                zfrb, params, TNGparams): 
+                zfrb, params, TNGparams):
+    """ Product of the cosmic and host DM PDFs
+    """
     figm, fx, mu, sigma = params
     dmhost = dmexgal - dmhalo - dmigm
     pcosmic = pdm_cosmic(dmhalo, dmigm, (figm, fx), TNGparams)
@@ -153,23 +159,26 @@ def log_probability(params, zfrb, dm, tngparams_arr):
 
     return lp + logLike
 
-def worker(figm):
-    params = [figm, 0.125, 5, 1]
-    return func(params, dmhalo, dmigm, dmexgal, zex, tngparams_arr, dmex)
-
-def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmigm, dmexgal, zex, tngparams_arr):
+def log_likelihood_all(params, zfrb, dmfrb, dmhalo, 
+                       dmigm, dmexgal, zex, tngparams_arr):
+    """ Log likelihood for all FRBs
+    """
     nz, ndm = len(zex), len(dmhalo)
     dmex = dmexgal[0,0]
     
     P = np.empty((ndm, nz))
 
+    # Iterate over FRB redshifts and compute the likelihood
+    # in DM at that redshift for those baryon parameters
     for ii in range(len(zex)):        
-        pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, zex[ii], params, tngparams_arr[ii])
+        pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, 
+                                           zex[ii], params, tngparams_arr[ii])
         
         for kk, dd in enumerate(dmex):
             p, dh = pp[:, :, kk], dmhost[:, :, kk]
             P[kk, ii] = np.nansum(p[dh > 0], axis=-1)
     
+    # Normalize the likelihoods on a per-redshift basis
     P = P / np.nansum(P, 0)
     
     nfrb = len(zfrb)
@@ -189,24 +198,43 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmigm, dmexgal, zex, tngpara
     return P, logP
 
 def log_prior(params):
+    """ Logarithmic priors on the baryon parameters
+
+    Parameters
+    ----------
+    params : list
+        figm - fraction of baryons in IGM
+        fx - fraction of baryons in halos
+        mu, sigma - parameters for the log-normal 
+                    distribution of the host DM
+    
+    Returns
+    -------
+    0 if the parameters are within the prior range
+    -np.inf if the parameters are outside the prior range
+    """
     figm, fx, mu, sigma = params
 
-    if 0.0 < figm < 1.2:
-        if 0. < fx < 0.25:
+    if 0.0 < figm < 1.1:
+        if 0. < fx < 0.5:
             if 0 < mu < 7:
                 if 0.01 < sigma < 2.:
-                    return 0
+                    if figm + fx < 1.1:
+                        return 0
             
     return -np.inf
 
-def log_posterior(params, zfrb, dmfrb, dmhalo, dmigm, dmexgal, zex, tngparams_arr):
+def log_posterior(params, zfrb, dmfrb, dmhalo, dmigm,
+                  dmexgal, zex, tngparams_arr):
     
     log_pri = log_prior(params)
     
     if not np.isfinite(log_pri):
         return -np.inf
     
-    log_like = log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmigm, dmexgal, zex, tngparams_arr)[1]
+    log_like = log_likelihood_all(params, zfrb, dmfrb, dmhalo, 
+                                  dmigm, dmexgal, zex, 
+                                  tngparams_arr)[1]
 
     return log_pri + log_like 
 
@@ -221,29 +249,37 @@ def main(data, param_dict):
     ndim = param_dict['ndim']
     pguess = param_dict['pguess']
 
-    # Generate the figm values
+    # Generate the IGM DM values
     dmi = np.linspace(dmmin, dmmax, ndm)
+    # Generate halo DM values
     dmh = np.linspace(dmmin, dmmax, ndm)
+    # Generate the total exgal DM values
     dmex = np.linspace(dmexmin, dmexmax, ndm)
 
     zex = np.linspace(zmin, zmax, nz)
 
+    # Generate the array of parameters from TNG FRB simulations
     tngparams_arr = generate_TNGparam_arr(zex)
 
+    # Generate the meshgrid of halo, IGM, and total exgal DM values
     dmhalo, dmigm, dmexgal = np.meshgrid(dmh, dmi, dmex)
 
-    pguess = (0.8, 0.15, 5, 1)
-
-    nwalkers = 32
-    ndim = 4
-    nsamp = 1500
-    tngparams_arr = generate_TNGparam_arr(zex)
+    nsamp = nmcmc_steps
     pos = pguess + 1e-3 * np.random.randn(nwalkers, ndim)
+    mcmc_filename = "emceechain_figm_%dsteps.h5" % nsamp
+    backend = emcee.backends.HDFBackend(mcmc_filename)
+
+    if os.path.exists(mcmc_filename):
+        pass
+    else:
+        backend.reset(nwalkers, ndim)
 
     with Pool(32) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior,
                                         args=(zfrb, dmfrb, dmhalo,
-                                             dmigm, dmexgal, zex, tngparams_arr), pool=pool)
+                                             dmigm, dmexgal, zex, 
+                                             tngparams_arr), 
+                                             pool=pool, backend=backend)
         sampler.run_mcmc(pos, nsamp, progress=True)
         
     flat_samples = sampler.get_chain(discard=0, thin=1, flat=True)
@@ -256,7 +292,7 @@ if __name__ == '__main__':
     df = pd.read_csv(fn_dsa, delim_whitespace=False)
     zdsa = df['redshift'].values
     dmdsa = df['dm_exgal'].values
-    ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.05))[0]
+    ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.0))[0]
     zdsa = np.abs(zdsa[ind])
     dmdsa = dmdsa[ind]
 
@@ -264,15 +300,15 @@ if __name__ == '__main__':
     figm_start, fX_start, mu_start, sigma_start = 0.8, 0.15, 5, 1
 
     param_dict = {'dmmin': 0, 
-                  'dmmax': 5000, 
+                  'dmmax': 2000, 
                   'ndm': 100,
                   'zmin': 0, 
-                  'zmax': 2, 
+                  'zmax': 1.5, 
                   'nz': 100,
                   'dmexmin': 0, 
-                  'dmexmax': 5000, 
+                  'dmexmax': 2000, 
                   'ndmex': 100,
-                  'nmcmc_steps' : 1500,
+                  'nmcmc_steps' : 500,
                   'nwalkers' : 32,
                   'ndim' : 4,
                   'pguess' : (figm_start, fX_start, mu_start, sigma_start),                
