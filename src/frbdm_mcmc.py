@@ -1,4 +1,5 @@
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -139,24 +140,17 @@ def log_likelihood(zfrb, dmexgal, params, tngparams_arr):
 
     return logP
 
-def log_prior(params):
-    figm, fx, mu, sigma = params
-
-    if 0.0 < figm < 1.0:
-        if 0. < fx < 0.5:
-            if 0 < mu < 7:
-                if 0.1 < sigma < 2.:
-                    return 0
-    return -np.inf
-
 def log_probability(params, zfrb, dm, tngparams_arr):
     lp = log_prior(params)
     
     if not np.isfinite(lp):
         return -np.inf
-
+    
     logLike = log_likelihood(zfrb, dm, params, tngparams_arr)
 
+    if not np.isfinite(logLike):
+        return -np.inf
+    
     return lp + logLike
 
 def log_likelihood_all(params, zfrb, dmfrb, dmhalo, 
@@ -216,9 +210,9 @@ def log_prior(params):
     figm, fx, mu, sigma = params
 
     if 0.0 < figm < 1.1:
-        if 0. < fx < 0.5:
-            if 0 < mu < 7:
-                if 0.01 < sigma < 2.:
+        if 0. < fx < 1:
+            if 0 < mu < 9:
+                if 0.01 < sigma < 2.5:
                     if figm + fx < 1.1:
                         return 0
             
@@ -266,15 +260,18 @@ def main(data, param_dict):
 
     nsamp = nmcmc_steps
     pos = pguess + 1e-3 * np.random.randn(nwalkers, ndim)
-    mcmc_filename = "emceechain_figm_%dsteps.h5" % nsamp
-    backend = emcee.backends.HDFBackend(mcmc_filename)
+    mcmc_filename = "emceechain_figm_macquart.h5"
+    mcmc_filename = "emceechain_figm_test.h5"
 
     if os.path.exists(mcmc_filename):
-        pass
+        print("Picking up %s where it left off \n" % mcmc_filename)        
+        backend = emcee.backends.HDFBackend(mcmc_filename)
     else:
+        print("Starting %s from scratch \n" % mcmc_filename)
+        backend = emcee.backends.HDFBackend(mcmc_filename)
         backend.reset(nwalkers, ndim)
 
-    with Pool(32) as pool:
+    with Pool(64) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior,
                                         args=(zfrb, dmfrb, dmhalo,
                                              dmigm, dmexgal, zex, 
@@ -306,9 +303,9 @@ if __name__ == '__main__':
                   'zmax': 1.5, 
                   'nz': 100,
                   'dmexmin': 0, 
-                  'dmexmax': 2000, 
+                  'dmexmax': 1500, 
                   'ndmex': 100,
-                  'nmcmc_steps' : 500,
+                  'nmcmc_steps' : 5000,
                   'nwalkers' : 32,
                   'ndim' : 4,
                   'pguess' : (figm_start, fX_start, mu_start, sigma_start),                
@@ -316,4 +313,14 @@ if __name__ == '__main__':
     
     data = (zdsa, dmdsa - 30.)
 
+    dmall_sub = np.load('dmall_sub.npy')
+    zall_sub = np.load('zall_sub.npy')
+    
+    data = (zall_sub, dmall_sub - 30.)
+
+#    dmmac = np.load('dmmacquart20.npy')
+#    zmac = np.load('zmacquart20.npy')
+
+#    data = (zmac, dmmac)
+    
     flat_samples = main(data, param_dict=param_dict)
