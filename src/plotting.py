@@ -532,17 +532,163 @@ def plot_corner_gtc():
                         priors=priors,
                     customLabelFont={'size':18})
 
-for i in range(4):
-    mcmc = np.percentile(flat_samples2[1000::10, i], [16, 50, 84])
-    q = np.diff(mcmc)
-    txt = "\mathrm{{{3}}} = {0:.3f}_{{-{1:.3f}}}^{{{2:.3f}}}"
-    if i==2:
-        mu_h, mu_h_low, mu_h_up = mcmc[1], q[0], q[1]
-        txt = txt.format(mcmc[1], q[0], q[1], labels[i])
-    elif i==3:
-        sig_h = mcmc[1]
-        txt = txt.format(mcmc[1], q[0], q[1], labels[i])
-    else:
-        txt = txt.format(mcmc[1], q[0], q[1], labels[i])
-    display(Math(txt))
-    print(txt)
+    for i in range(4):
+        mcmc = np.percentile(flat_samples2[1000::10, i], [16, 50, 84])
+        q = np.diff(mcmc)
+        txt = "\mathrm{{{3}}} = {0:.3f}_{{-{1:.3f}}}^{{{2:.3f}}}"
+        if i==2:
+            mu_h, mu_h_low, mu_h_up = mcmc[1], q[0], q[1]
+            txt = txt.format(mcmc[1], q[0], q[1], labels[i])
+        elif i==3:
+            sig_h = mcmc[1]
+            txt = txt.format(mcmc[1], q[0], q[1], labels[i])
+        else:
+            txt = txt.format(mcmc[1], q[0], q[1], labels[i])
+        display(Math(txt))
+        print(txt)
+
+plt.rcParams.update({
+                    'font.size': 12,
+                    'font.family': 'serif',
+                    'axes.labelsize': 14,
+                    'axes.titlesize': 15,
+                    'xtick.labelsize': 12,
+                    'ytick.labelsize': 12,
+                    'xtick.direction': 'in',
+                    'ytick.direction': 'in',
+                    'xtick.top': True,
+                    'ytick.right': True,
+                    'lines.linewidth': 0.5,
+                    'lines.markersize': 5,
+                     'legend.borderaxespad': 1,
+                     'legend.frameon': True,
+                     'legend.loc': 'lower right'})
+
+colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
+
+def get_1d_values(p, x):
+    pcum = np.cumsum(p)
+    pmedian = x[np.argmin(np.abs(pcum - 0.5))]
+    p_p1sig = x[np.argmin(np.abs(pcum - 0.84))]
+    p_n1sig = x[np.argmin(np.abs(pcum - 0.16))]
+    p_p2sig = x[np.argmin(np.abs(pcum - 0.95))]
+    p_n2sig = x[np.argmin(np.abs(pcum - 0.05))]
+    pmean = np.nansum(x * p)
+        
+    return pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean
+
+def get_contours(p, x):
+    nz = p.shape[1]
+    arr = np.zeros([nz, 6])
+    
+    for ii in range(nz):
+        pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean = get_1d_values(p[:, ii], x)
+        
+        arr[ii, 0] = pmedian
+        arr[ii, 1] = p_p1sig
+        arr[ii, 2] = p_n1sig
+        arr[ii, 3] = p_n2sig
+        arr[ii, 4] = p_p2sig
+        arr[ii, 5] = pmean
+    
+    return arr
+
+
+def macquart_heatmap(Prob, fnout='macquart_heatmap.pdf'):
+    """ Make a 2D likelihood plot for 
+    the DM/z relation, including scatter plots for both 
+    DSA and non-DSA FRBs.
+    """
+    plt.rcParams.update({
+                        'font.size': 12,
+                        'font.family': 'serif',
+                        'axes.labelsize': 14,
+                        'axes.titlesize': 15,
+                        'xtick.labelsize': 12,
+                        'ytick.labelsize': 12,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'xtick.top': True,
+                        'ytick.right': True,
+                        'lines.linewidth': 0.5,
+                        'lines.markersize': 5,
+                        'legend.borderaxespad': 1,
+                        'legend.frameon': True,
+                        'legend.loc': 'lower right'})
+
+    colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
+
+    def get_1d_values(p, x):
+        pcum = np.cumsum(p)
+        pmedian = x[np.argmin(np.abs(pcum - 0.5))]
+        p_p1sig = x[np.argmin(np.abs(pcum - 0.84))]
+        p_n1sig = x[np.argmin(np.abs(pcum - 0.16))]
+        p_p2sig = x[np.argmin(np.abs(pcum - 0.95))]
+        p_n2sig = x[np.argmin(np.abs(pcum - 0.05))]
+        pmean = np.nansum(x * p)
+            
+        return pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean
+
+    def get_contours(p, x):
+        nz = p.shape[1]
+        arr = np.zeros([nz, 6])
+        
+        for ii in range(nz):
+            pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean = get_1d_values(p[:, ii], x)
+            
+            arr[ii, 0] = pmedian
+            arr[ii, 1] = p_p1sig
+            arr[ii, 2] = p_n1sig
+            arr[ii, 3] = p_n2sig
+            arr[ii, 4] = p_p2sig
+            arr[ii, 5] = pmean
+        
+        return arr
+
+    nz, ndm = 250, 250
+
+    dmi = np.linspace(0, 2000, ndm)
+    dmh = np.linspace(0, 2000, ndm)
+    dmex = np.linspace(15, 2000, ndm)
+    zex = np.linspace(0.05, 1.7, nz)
+
+    dmhalo, dmigm, dmexgal = np.meshgrid(dmh, dmi, dmex)
+
+    tngparams_arr = generate_TNGparam_arr(zex)
+
+    if Prob is None:
+        Prob, logp = func([0.8, 0.15, 5, 1.], zdsa, dmdsa, dmhalo, dmigm, dmexgal, zex, tngparams_arr)
+
+    arr = get_contours(P, dmex)
+
+    figure(figsize=(8,6.8))
+
+    scatter(-10, 0, color='lightpink', marker='s', alpha=1, s=50, edgecolor='k',)
+    scatter(-10, 0, color='lightcyan', s=50, edgecolor='k',)
+
+    Prob_ = Prob[::-1]
+
+    imshow(np.log(Prob_),
+        aspect='auto', cmap='afmhot',
+        extent=[0, zex.max(), 
+                dmexgal.min(), dmexgal.max()], 
+        vmax=-2.,vmin=-7, alpha=0.5)
+    colorbar(label=r'$\log P(DM_{ex} | z_s)$',)
+
+    title('DSA-110 sources', fontsize=20)
+
+    plot(zex, arr[:, 0], ':', c='w', lw=1, alpha=0.5)
+    plot(zex, arr[:, 1], c='w', lw=1, alpha=0.25)
+    plot(zex, arr[:, 2], c='w', lw=1, alpha=0.25)
+    plot(zex, arr[:, 3], c='w', lw=1, alpha=0.25)
+    plot(zex, arr[:, 4], c='w', lw=1, alpha=0.25)
+    plot(zex, arr[:, 5], c='C0', lw=1.5, alpha=0.25)
+
+    scatter(zaskap, dmaskex,  marker='s', color='lightpink', s=30, edgecolor='k',)
+    scatter(zdsa, dmdsa, color='lightcyan', alpha=1, s=55, edgecolor='k',)
+    xlabel('Redshift', fontsize=18)
+    ylabel("Exgal DM", fontsize=18)
+    ylim(50, 1550)
+    xlim(0, 1.5)
+    legend(['non-DSA FRBs', 'DSA-110 FRBs'])
+    savefig(fnout)
