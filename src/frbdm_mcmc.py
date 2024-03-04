@@ -278,7 +278,7 @@ def main(data, param_dict, mcmc_filename='test.h5'):
     return flat_samples 
 
 if __name__ == '__main__':
-    datadir = '/home/connor/software/baryon_paper/src/data/'
+    datadir = '/home/connor/software/baryon_paper/data/'
     fn_dsa = '/home/connor/data/dsafrbs_feb2024.csv'
     df = pd.read_csv(fn_dsa, delim_whitespace=False)
     zdsa = df['redshift'].values
