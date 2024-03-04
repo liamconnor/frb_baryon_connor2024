@@ -17,8 +17,7 @@ from astropy.cosmology import Planck18 as cosmo
 brute_force = True
 
 import numpy as np
-from scipy.integrate import quad, dblquad
-from scipy.integrate import quad_vec
+from scipy.integrate import dblquad
 from multiprocessing import Pool
 import numba as nb
 
@@ -227,7 +226,164 @@ def log_posterior(params, zfrb, dmfrb, dmhalo, dmigm,
     
     return log_pri + log_like 
 
+def pdmigm_mcquinn(dm, figm, C0, sigma, dmigm_allbaryons,
+           A=1., alpha=3., beta=3.):
+    """
+    PDF(Delta) following the McQuinn formalism describing the DM_cosmic PDF
+
+    See Macquart+2020 for details
+
+    Args:
+        Delta (float or np.ndarray):
+            DM / averageDM values
+        C0 (float):
+            parameter
+        sigma (float):
+        A (float, optional):
+        alpha (float, optional):
+        beta (float, optional):
+
+    Returns:
+        float or np.ndarray:
+
+    """
+    dmmean = figm * dmigm_allbaryons
+    Delta = dm / dmmean
+    p = A * np.exp(-(Delta**(-alpha) - C0) ** 2 / (
+            2 * alpha**2 * sigma**2)) * Delta**(-beta)
+
+    return p
+
+def get_params_zhang(zfrb):
+    A = A_spl(zfrb)
+    C0 = C0_spl(zfrb)
+    sigma = sigmaDM_spl(zfrb)
+    return A, C0, sigma
+
+def pdm_product(dmhalo, dmigm, dmexgal, 
+                zfrb, params, TNGparams): 
+    figm, fx, mu, sigma = params
+    dmhost = dmexgal - dmhalo - dmigm
+    pcosmic = pdm_cosmic(dmhalo, dmigm, (figm, fx), TNGparams)
+    phost = pdmhost(dmhost * (1+zfrb), mu, sigma)
+
+    return pcosmic * phost
+
+def prod_prob_mcquinn(dmigm, zfrb, dm, params, tngparams, dmigm_allbaryons):
+    A, C0, sigmaigm = tngparams
+    figm, F, mu_h, sigma_h = params
+    dmhost = dm - dmigm
+    sigma_igm = F / np.sqrt(zfrb)
+    prod = pdmhost(dmhost * (1+zfrb), mu_h, sigma_h) * pdmigm_mcquinn(dm, figm, C0, sigma_igm, dmigm_allbaryons)
+    return prod
+
+def log_likelihood_all_mcquinn(params, zfrb, dmexgal, 
+                   IGMparams, dmigm_allbaryons_arr):
+
+    A, C0, sigmaigm = IGMparams
+    
+    if type(zfrb)==np.float64:
+        p = quad(prod_prob_mcquinn, 0, dmexgal, (zfrb, dmexgal, 
+                                        (A, C0, sigmaigm), 
+                                        dmigm_allbaryons_arr,
+                                             params))[0]
+        return np.log(p)
+    
+    nfrb = len(zfrb)
+    logP = 0
+    
+    for kk in range(nfrb):
+#         p = dblquad(prod_prob_mcquinn, 0, dmexgal[kk], 
+#                     lambda x: 0, lambda x: dmexgal[kk] - x, 
+#                     (zfrb[kk], dmexgal[kk], 
+#                     (A[kk], C0[kk], sigmaigm[kk]), 
+#                     dmigm_allbaryons_arr[kk],
+#                     params))[0]
+        
+        p = quad(prod_prob_mcquinn, 0, dmexgal[kk], (zfrb[kk], dmexgal[kk], 
+                                                     params,
+                                        (A[kk], C0[kk], sigmaigm[kk]), 
+                                        dmigm_allbaryons_arr[kk],
+                                             ))[0]
+        
+        logP += np.log(p)
+    
+    return logP
+
+def log_prior_mcquinn(params):
+    figm, F, mu_h, sigma_h = params
+
+    if 0 < figm < 2:
+        if 0.1 < mu_h < 9:
+            if 0.1 < sigma_h < 2.:
+                if 0.0 < F < 2.:
+                    return 0
+            
+    return -np.inf
+
+def log_posterior_mcquinn(params, zfrb, dmex, IGMparams, 
+                          dmigm_allbaryons_arr):
+    lp = log_prior_mcquinn(params)
+    
+    if not np.isfinite(lp):
+        return -np.inf
+    
+    log_like = log_likelihood_all_mcquinn(params, zfrb, dmex, 
+                               IGMparams, dmigm_allbaryons_arr)
+
+    return lp + log_like
+
+def main_mcquinn(data, mcmc_filename='test.h5'):
+    # Start parameters for MCMC chain 
+    figm_start, F_start, mu_start, sigma_start = 1.0, 0.5, 5, 1
+
+    param_dict = {'dmmin': 0, 
+                  'dmmax': 1700, 
+                  'ndm': 100,
+                  'zmin': 0, 
+                  'zmax': 1.5, 
+                  'nz': 100,
+                  'dmexmin': 0, 
+                  'dmexmax': 1700, 
+                  'ndmex': 100,
+                  'nmcmc_steps' : 5000,
+                  'nwalkers' : 32,
+                  'ndim' : 4,
+                  'pguess' : (figm_start, F_start, mu_start, sigma_start),                
+                  }
+
+    zfrb, dmfrb = data
+
+    nmcmc_steps = param_dict['nmcmc_steps']
+    nwalkers = param_dict['nwalkers']
+    ndim = param_dict['ndim']
+    pguess = param_dict['pguess']
+
+    # Generate the array of parameters from TNG FRB simulations
+    IGMparams = get_params(zfrb)
+    dmigm_allbaryons_arr = np.array([get_dmigm(zfrb[xx]) for xx in range(len(zfrb))])
+
+    nsamp = nmcmc_steps
+    pos = pguess + 1e-3 * np.random.randn(nwalkers, ndim)
+
+    if os.path.exists(mcmc_filename):
+        print("Picking up %s where it left off \n" % mcmc_filename)        
+        backend = emcee.backends.HDFBackend(mcmc_filename)
+    else:
+        print("Starting %s from scratch \n" % mcmc_filename)
+        backend = emcee.backends.HDFBackend(mcmc_filename)
+        backend.reset(nwalkers, ndim)
+
+    with Pool(32) as pool:
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior_mcquinn,
+                                        args=(zfrb, dmfrb, IGMparams, 
+                                              dmigm_allbaryons_arr), 
+                                             pool=pool, backend=backend)
+        
+        sampler.run_mcmc(pos, nsamp, progress=True)        
+
 def main(data, param_dict, mcmc_filename='test.h5'):
+    
     zfrb, dmfrb = data
 
     dmmin, dmmax, ndm = param_dict['dmmin'], param_dict['dmmax'], param_dict['ndm']
@@ -340,6 +496,8 @@ if __name__ == '__main__':
     g.create_dataset('dmfrb', data=data[1])
     g.close()
 
-    flat_samples = main(data, param_dict=param_dict, 
-                        mcmc_filename=mcmc_filename)
+    #main(data, param_dict=param_dict, 
+    #                    mcmc_filename=mcmc_filename)
+
+    main_mcquinn(data, mcmc_filename=mcmc_filename)
     
