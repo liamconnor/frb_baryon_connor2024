@@ -278,6 +278,7 @@ def main(data, param_dict, mcmc_filename='test.h5'):
     return flat_samples 
 
 if __name__ == '__main__':
+    datadir = '/home/connor/software/baryon_paper/src/data/'
     fn_dsa = '/home/connor/data/dsafrbs_feb2024.csv'
     df = pd.read_csv(fn_dsa, delim_whitespace=False)
     zdsa = df['redshift'].values
@@ -306,8 +307,8 @@ if __name__ == '__main__':
     
     data = (zdsa, dmdsa - 30.)
 
-    dmall_sub = np.load('dmall_sub.npy')
-    zall_sub = np.load('zall_sub.npy')
+    dmall_sub = np.load(datadir + 'dmall_sub.npy')
+    zall_sub = np.load(datadir +'zall_sub.npy')
     
     data = (zall_sub, dmall_sub - 30.)
 
@@ -330,7 +331,6 @@ if __name__ == '__main__':
 
 #    data = (ztng[induse], dmtng[induse])
     
-    datadir = '/home/connor/software/baryon_paper/src/data/'
     ftoken = 'figm_all_march2_nomark_noada_figmpfxmax.h5'
     mcmc_filename = datadir + "emceechain_%s" % ftoken
     data_filename = datadir + "data_%s" % ftoken
