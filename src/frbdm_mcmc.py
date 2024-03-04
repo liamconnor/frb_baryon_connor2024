@@ -229,7 +229,9 @@ def log_posterior(params, zfrb, dmfrb, dmhalo, dmigm,
     log_like = log_likelihood_all(params, zfrb, dmfrb, dmhalo, 
                                   dmigm, dmexgal, zex, 
                                   tngparams_arr)[1]
-
+    if not np.isfinite(log_like):
+        return -np.inf
+    
     return log_pri + log_like 
 
 def main(data, param_dict):
@@ -260,8 +262,8 @@ def main(data, param_dict):
 
     nsamp = nmcmc_steps
     pos = pguess + 1e-3 * np.random.randn(nwalkers, ndim)
-    mcmc_filename = "emceechain_figm_macquart.h5"
-    mcmc_filename = "emceechain_figm_test.h5"
+    mcmc_filename = "emceechain_figm_all_march2_nomark_noada_figmpfxmax.h5"
+#    mcmc_filename = "emceechain_figm_TNG_50FRB.h5"
 
     if os.path.exists(mcmc_filename):
         print("Picking up %s where it left off \n" % mcmc_filename)        
@@ -289,7 +291,7 @@ if __name__ == '__main__':
     df = pd.read_csv(fn_dsa, delim_whitespace=False)
     zdsa = df['redshift'].values
     dmdsa = df['dm_exgal'].values
-    ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.0))[0]
+    ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.01))[0]
     zdsa = np.abs(zdsa[ind])
     dmdsa = dmdsa[ind]
 
@@ -297,13 +299,13 @@ if __name__ == '__main__':
     figm_start, fX_start, mu_start, sigma_start = 0.8, 0.15, 5, 1
 
     param_dict = {'dmmin': 0, 
-                  'dmmax': 2000, 
+                  'dmmax': 1700, 
                   'ndm': 100,
                   'zmin': 0, 
                   'zmax': 1.5, 
                   'nz': 100,
                   'dmexmin': 0, 
-                  'dmexmax': 1500, 
+                  'dmexmax': 1700, 
                   'ndmex': 100,
                   'nmcmc_steps' : 5000,
                   'nwalkers' : 32,
@@ -318,9 +320,24 @@ if __name__ == '__main__':
     
     data = (zall_sub, dmall_sub - 30.)
 
+    print("Analyzing %d FRBs" % len(zall_sub))
+    
 #    dmmac = np.load('dmmacquart20.npy')
 #    zmac = np.load('zmacquart20.npy')
 
 #    data = (zmac, dmmac)
+#    dm = np.load('/home/connor/dmsim.npy')
+
+#    ztng, dmtng = dm[0], dm[1]
+
+#    indnr = np.where(dm[0] < 2.0)[0]
+
+#    ztng = ztng[indnr]
+#    dmtng = dmtng[indnr]
+
+#    induse = np.random.randint(0, len(ztng), 50)
+
+#    data = (ztng[induse], dmtng[induse])
     
     flat_samples = main(data, param_dict=param_dict)
+    
