@@ -21,6 +21,40 @@ from scipy.integrate import dblquad
 from multiprocessing import Pool
 import numba as nb
 
+dzhang = np.array([[0.1, 0.04721, -13.17, 2.554],
+                                       [0.2, 0.005693, -1.008, 1.118],
+                                       [0.3, 0.003584, 0.596, 0.7043],
+                                       [0.4, 0.002876, 1.010, 0.5158],
+                                       [0.5, 0.002423, 1.127, 0.4306],
+                                       [0.7, 0.001880, 1.170, 0.3595],
+                                       [1, 0.001456, 1.189, 0.3044],
+                                       [1.5, 0.001098, 1.163, 0.2609],
+                                       [2, 0.0009672, 1.162, 0.2160],
+                                       [2.4, 0.0009220, 1.142, 0.1857],
+                                       [3, 0.0008968, 1.119, 0.1566],
+                                       [3.5, 0.0008862, 1.104, 0.1385],
+                                       [4, 0.0008826, 1.092, 0.1233],
+                                       [4.4, 0.0008827, 1.084, 0.1134],
+                                       [5, 0.0008834, 1.076, 0.1029],
+                                       [6.5, 0.0008881, 1.066, 0.08971]])
+
+
+zarr, A, C0, sigmaDM = dzhang[:,0], dzhang[:,1], dzhang[:,2], dzhang[:,3]
+
+A_spl = UnivariateSpline(zarr, A, s=0)
+C0_spl = UnivariateSpline(zarr, C0, s=0)
+sigmaDM_spl = UnivariateSpline(zarr, sigmaDM, s=0)
+
+def dmigm_integrand(z, figm=1, fe=7/8., alpha=0.0):
+    figm = figm * (1 + alpha*z)
+    y = (1+z)*figm*fe / (P.H(z)/P.H0)
+    return y
+
+def get_dmigm(zfrb, figm=1):
+        A = 3 * con.c * P.Ob(0) * P.H0 / (8 * np.pi * con.G* con.m_p)
+        val = (A * quad(dmigm_integrand, 0, zfrb, args=(figm))[0]).to(u.pc * u.cm**-3).value
+                return val
+
 def generate_TNGparam_arr(zfrb):
     """ Read in TNG300 parameter fits from Walker et al. 2023 
     and interpolate to the redshifts of the FRBs. These 
@@ -360,7 +394,7 @@ def main_mcquinn(data, mcmc_filename='test.h5'):
     pguess = param_dict['pguess']
 
     # Generate the array of parameters from TNG FRB simulations
-    IGMparams = get_params(zfrb)
+    IGMparams = get_params_zhang(zfrb)
     dmigm_allbaryons_arr = np.array([get_dmigm(zfrb[xx]) for xx in range(len(zfrb))])
 
     nsamp = nmcmc_steps
