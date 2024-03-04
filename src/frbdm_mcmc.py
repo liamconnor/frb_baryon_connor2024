@@ -24,7 +24,9 @@ import numba as nb
 
 def generate_TNGparam_arr(zfrb):
     """ Read in TNG300 parameter fits from Walker et al. 2023 
-    and interpolate to the redshifts of the FRBs
+    and interpolate to the redshifts of the FRBs. These 
+    parameters fit a 2D logNormal distribution in 
+    the IGM and halo contributions to the FRB DM.
     """
     TNGfits = np.load('/home/connor/TNG300-1/TNGparameters.npy')
     nfrb = len(zfrb)
@@ -54,10 +56,10 @@ def generate_TNGparam_arr(zfrb):
 
 #@njit
 def pdmhost(dmhost, mu, sigma):
-    # Could reasonably be: pdmhost(dmhost, 3, 1)
-    p = 1/(dmhost * np.sqrt(2*np.pi) * sigma)
-    p *= np.exp(-(np.log(dmhost) - mu)**2 / (2*sigma**2))
-    return p
+    """ Log-normal PDF for the host DM."""
+    prob = 1/(dmhost * np.sqrt(2*np.pi) * sigma)
+    prob *= np.exp(-(np.log(dmhost) - mu)**2 / (2*sigma**2))
+    return prob
 
 #@njit
 def pdm_cosmic(dmhalo, dmigm, params, TNGparams):
@@ -115,15 +117,16 @@ def pdm_product(dmhalo, dmigm, dmexgal,
 
 #@njit(parallel=False)
 def log_likelihood_one_source(zfrb, dmexgal, params, tngparams):
-
+    """ Log likelihood for a single FRB, but compute using 
+    the 2D integration function dblquad rather than 
+    summing over a meshgrid of DM values."""
     p = dblquad(pdm_product, 0, dmexgal,
               lambda x: 0, lambda x: dmexgal-x,
                (dmexgal, zfrb, params, tngparams))[0]
 
     return np.log(p)
 
-
-def log_likelihood(zfrb, dmexgal, params, tngparams_arr):
+def log_likelihood_all_dblquad(zfrb, dmexgal, params, tngparams_arr):
     logP = 0
         
     nfrb = len(zfrb)
@@ -139,19 +142,6 @@ def log_likelihood(zfrb, dmexgal, params, tngparams_arr):
         logP += np.log(p)
 
     return logP
-
-def log_probability(params, zfrb, dm, tngparams_arr):
-    lp = log_prior(params)
-    
-    if not np.isfinite(lp):
-        return -np.inf
-    
-    logLike = log_likelihood(zfrb, dm, params, tngparams_arr)
-
-    if not np.isfinite(logLike):
-        return -np.inf
-    
-    return lp + logLike
 
 def log_likelihood_all(params, zfrb, dmfrb, dmhalo, 
                        dmigm, dmexgal, zex, tngparams_arr):
@@ -197,6 +187,7 @@ def log_prior(params):
     Parameters
     ----------
     params : list
+        [figm, fx, mu, sigma]
         figm - fraction of baryons in IGM
         fx - fraction of baryons in halos
         mu, sigma - parameters for the log-normal 
@@ -220,7 +211,9 @@ def log_prior(params):
 
 def log_posterior(params, zfrb, dmfrb, dmhalo, dmigm,
                   dmexgal, zex, tngparams_arr):
-    
+    """ Log posterior for the baryon parameters. First 
+    check if the parameters are within the prior range, 
+    then compute the log likelihood."""
     log_pri = log_prior(params)
     
     if not np.isfinite(log_pri):
@@ -234,7 +227,7 @@ def log_posterior(params, zfrb, dmfrb, dmhalo, dmigm,
     
     return log_pri + log_like 
 
-def main(data, param_dict):
+def main(data, param_dict, mcmc_filename='test.h5'):
     zfrb, dmfrb = data
 
     dmmin, dmmax, ndm = param_dict['dmmin'], param_dict['dmmax'], param_dict['ndm']
@@ -262,8 +255,6 @@ def main(data, param_dict):
 
     nsamp = nmcmc_steps
     pos = pguess + 1e-3 * np.random.randn(nwalkers, ndim)
-    mcmc_filename = "emceechain_figm_all_march2_nomark_noada_figmpfxmax.h5"
-#    mcmc_filename = "emceechain_figm_TNG_50FRB.h5"
 
     if os.path.exists(mcmc_filename):
         print("Picking up %s where it left off \n" % mcmc_filename)        
@@ -339,5 +330,16 @@ if __name__ == '__main__':
 
 #    data = (ztng[induse], dmtng[induse])
     
-    flat_samples = main(data, param_dict=param_dict)
+    datadir = '/home/connor/software/baryon_paper/src/data/'
+    ftoken = 'figm_all_march2_nomark_noada_figmpfxmax.h5'
+    mcmc_filename = datadir + "emceechain_%s" % ftoken
+    data_filename = datadir + "data_%s" % ftoken
+
+    g = h5py.File(data_filename, 'w')
+    g.create_dataset('zfrb', data=data[0])
+    g.create_dataset('dmfrb', data=data[1])
+    g.close()
+
+    flat_samples = main(data, param_dict=param_dict, 
+                        mcmc_filename=mcmc_filename)
     
