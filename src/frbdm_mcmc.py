@@ -16,35 +16,7 @@ from astropy.cosmology import Planck18 as P
 from scipy.integrate import dblquad, quad
 from astropy import constants as con, units as u
 
-brute_force = True
-
-import numpy as np
-from scipy.integrate import dblquad
-from multiprocessing import Pool
-import numba as nb
-
-dzhang = np.array([[0.1, 0.04721, -13.17, 2.554],
-                    [0.2, 0.005693, -1.008, 1.118],
-                    [0.3, 0.003584, 0.596, 0.7043],
-                    [0.4, 0.002876, 1.010, 0.5158],
-                    [0.5, 0.002423, 1.127, 0.4306],
-                    [0.7, 0.001880, 1.170, 0.3595],
-                    [1, 0.001456, 1.189, 0.3044],
-                    [1.5, 0.001098, 1.163, 0.2609],
-                    [2, 0.0009672, 1.162, 0.2160],
-                    [2.4, 0.0009220, 1.142, 0.1857],
-                    [3, 0.0008968, 1.119, 0.1566],
-                    [3.5, 0.0008862, 1.104, 0.1385],
-                    [4, 0.0008826, 1.092, 0.1233],
-                    [4.4, 0.0008827, 1.084, 0.1134],
-                    [5, 0.0008834, 1.076, 0.1029],
-                    [6.5, 0.0008881, 1.066, 0.08971]])
-
-zarr, A, C0, sigmaDM = dzhang[:,0], dzhang[:,1], dzhang[:,2], dzhang[:,3]
-
-A_spl = UnivariateSpline(zarr, A, s=0)
-C0_spl = UnivariateSpline(zarr, C0, s=0)
-sigmaDM_spl = UnivariateSpline(zarr, sigmaDM, s=0)
+from reader import read_frb_catalog
 
 def dmigm_integrand(z, figm=1, fe=7/8., alpha=0.0):
     figm = figm * (1 + alpha*z)
@@ -289,7 +261,36 @@ def pdmigm_mcquinn(dm, figm, C0, sigma, dmigm_allbaryons,
 
     return p
 
-def get_params_zhang(zfrb):
+def zhang_params():
+    """ The fit parameters from Zhang et al. 2020 assuming the mcquinn PDF model
+    https://iopscience.iop.org/article/10.3847/1538-4357/abceb9
+    """
+    dzhang = np.array([[0.1, 0.04721, -13.17, 2.554],
+                        [0.2, 0.005693, -1.008, 1.118],
+                        [0.3, 0.003584, 0.596, 0.7043],
+                        [0.4, 0.002876, 1.010, 0.5158],
+                        [0.5, 0.002423, 1.127, 0.4306],
+                        [0.7, 0.001880, 1.170, 0.3595],
+                        [1, 0.001456, 1.189, 0.3044],
+                        [1.5, 0.001098, 1.163, 0.2609],
+                        [2, 0.0009672, 1.162, 0.2160],
+                        [2.4, 0.0009220, 1.142, 0.1857],
+                        [3, 0.0008968, 1.119, 0.1566],
+                        [3.5, 0.0008862, 1.104, 0.1385],
+                        [4, 0.0008826, 1.092, 0.1233],
+                        [4.4, 0.0008827, 1.084, 0.1134],
+                        [5, 0.0008834, 1.076, 0.1029],
+                        [6.5, 0.0008881, 1.066, 0.08971]])
+
+    zarr, A, C0, sigmaDM = dzhang[:,0], dzhang[:,1], dzhang[:,2], dzhang[:,3]
+
+    A_spl = UnivariateSpline(zarr, A, s=0)
+    C0_spl = UnivariateSpline(zarr, C0, s=0)
+    sigmaDM_spl = UnivariateSpline(zarr, sigmaDM, s=0)
+
+    return A_spl, C0_spl, sigmaDM_spl
+
+def get_params_zhang(zfrb, A_spl, C0_spl, sigmaDM_spl):
     A = A_spl(zfrb)
     C0 = C0_spl(zfrb)
     sigma = sigmaDM_spl(zfrb)
@@ -394,8 +395,9 @@ def main_mcquinn(data, mcmc_filename='test.h5'):
     ndim = param_dict['ndim']
     pguess = param_dict['pguess']
 
+    A_spl, C0_spl, sigmaDM_spl = zhang_params()
     # Generate the array of parameters from TNG FRB simulations
-    IGMparams = get_params_zhang(zfrb)
+    IGMparams = get_params_zhang(zfrb, A_spl, C0_spl, sigmaDM_spl)
     dmigm_allbaryons_arr = np.array([get_dmigm(zfrb[xx]) for xx in range(len(zfrb))])
 
     nsamp = nmcmc_steps
@@ -469,14 +471,20 @@ def main(data, param_dict, mcmc_filename='test.h5'):
     return flat_samples 
 
 if __name__ == '__main__':
-    datadir = '/home/connor/software/baryon_paper/data/'
-    fn_dsa = '/home/connor/data/dsafrbs_feb2024.csv'
-    df = pd.read_csv(fn_dsa, delim_whitespace=False)
-    zdsa = df['redshift'].values
-    dmdsa = df['dm_exgal'].values
-    ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.0125))[0]
-    zdsa = np.abs(zdsa[ind])
-    dmdsa = dmdsa[ind]
+    fnfrb = './allfrbs_11march24.csv'
+    ftoken_output = 'figm_allsurveys_dmlt0p88.h5'
+    zmin_sample = 0.0
+    zmax_sample = np.inf
+    telecopes = 'all'
+    max_fractional_MWDM = 0.4
+    dmhalo = 30.
+
+    frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
+                                   telescope=telecopes, secure_host=True,
+                                   max_fractional_MWDM=max_fractional_MWDM)
+
+    zfrb = frb_catalog['redshift'].values
+    dmfrb = frb_catalog['dm_exgal'].values - dmhalo
 
     # Start parameters for MCMC chain 
     figm_start, fX_start, mu_start, sigma_start = 0.8, 0.15, 5, 1
@@ -496,39 +504,13 @@ if __name__ == '__main__':
                   'pguess' : (figm_start, fX_start, mu_start, sigma_start),                
                   }
     
-    data = (zdsa, dmdsa - 30.)
-
-    dmall_sub = np.load(datadir + 'dmall_sub.npy')
-    zall_sub = np.load(datadir +'zall_sub.npy')
-
-    ind = np.where(zall_sub < 0.88)[0]
     
-    data = (zall_sub[ind], dmall_sub[ind] - 30.)
-
-#    print("Analyzing %d FRBs" % len(zall_sub))
-    
-#    dmmac = np.load('dmmacquart20.npy')
-#    zmac = np.load('zmacquart20.npy')
-
-#    data = (zmac, dmmac)
-#    dm = np.load('/home/connor/dmsim.npy')
-
-#    ztng, dmtng = dm[0], dm[1]
-
-#    indnr = np.where(dm[0] < 2.0)[0]
-
-#    ztng = ztng[indnr]
-#    dmtng = dmtng[indnr]
-
-#    induse = np.random.randint(0, len(ztng), 50)
-
-#    data = (ztng[induse], dmtng[induse])
+    data = (zfrb, dmfrb)
    
-    ftoken = 'figm_dsa_march7_nomark_noada_figmpfxmax.h5'
-    ftoken = 'figm_allsurveys_dmlt0p88.h5'
-    mcmc_filename = datadir + "emceechain_%s" % ftoken
-    data_filename = datadir + "data_%s" % ftoken
+    mcmc_filename = datadir + "emceechain_%s" % ftoken_output
+    data_filename = datadir + "data_%s" % ftoken_output
 
+    # Save the data itself to an h5 file
     g = h5py.File(data_filename, 'w')
     g.create_dataset('zfrb', data=data[0])
     g.create_dataset('dmfrb', data=data[1])
