@@ -12,7 +12,9 @@ from scipy.interpolate import UnivariateSpline
 import jax.numpy as jnp
 from jax import jit
 from tqdm import tqdm
-from astropy.cosmology import Planck18 as cosmo
+from astropy.cosmology import Planck18 as P
+from scipy.integrate import dblquad, quad
+from astropy import constants as con, units as u
 
 brute_force = True
 
@@ -346,7 +348,7 @@ def log_likelihood_all_mcquinn(params, zfrb, dmexgal,
 def log_prior_mcquinn(params):
     figm, F, mu_h, sigma_h = params
 
-    if 0 < figm < 2:
+    if 0 < figm < 4:
         if 0.1 < mu_h < 9:
             if 0.1 < sigma_h < 2.:
                 if 0.0 < F < 2.:
@@ -472,7 +474,7 @@ if __name__ == '__main__':
     df = pd.read_csv(fn_dsa, delim_whitespace=False)
     zdsa = df['redshift'].values
     dmdsa = df['dm_exgal'].values
-    ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.01))[0]
+    ind = np.where((zdsa != -1) & (dmdsa > 0) & (np.abs(zdsa) > 0.0125))[0]
     zdsa = np.abs(zdsa[ind])
     dmdsa = dmdsa[ind]
 
@@ -498,10 +500,12 @@ if __name__ == '__main__':
 
     dmall_sub = np.load(datadir + 'dmall_sub.npy')
     zall_sub = np.load(datadir +'zall_sub.npy')
-    
-    data = (zall_sub, dmall_sub - 30.)
 
-    print("Analyzing %d FRBs" % len(zall_sub))
+    ind = np.where(zall_sub < 0.88)[0]
+    
+    data = (zall_sub[ind], dmall_sub[ind] - 30.)
+
+#    print("Analyzing %d FRBs" % len(zall_sub))
     
 #    dmmac = np.load('dmmacquart20.npy')
 #    zmac = np.load('zmacquart20.npy')
@@ -519,8 +523,9 @@ if __name__ == '__main__':
 #    induse = np.random.randint(0, len(ztng), 50)
 
 #    data = (ztng[induse], dmtng[induse])
-    
-    ftoken = 'figm_all_march2_nomark_noada_figmpfxmax.h5'
+   
+    ftoken = 'figm_dsa_march7_nomark_noada_figmpfxmax.h5'
+    ftoken = 'figm_allsurveys_dmlt0p88.h5'
     mcmc_filename = datadir + "emceechain_%s" % ftoken
     data_filename = datadir + "data_%s" % ftoken
 
@@ -529,8 +534,8 @@ if __name__ == '__main__':
     g.create_dataset('dmfrb', data=data[1])
     g.close()
 
-    #main(data, param_dict=param_dict, 
-    #                    mcmc_filename=mcmc_filename)
+    main(data, param_dict=param_dict, 
+                        mcmc_filename=mcmc_filename)
 
-    main_mcquinn(data, mcmc_filename=mcmc_filename)
+    #main_mcquinn(data, mcmc_filename=mcmc_filename)
     
