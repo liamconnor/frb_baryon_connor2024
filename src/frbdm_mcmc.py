@@ -88,8 +88,9 @@ def pdm_cosmic(dmhalo, dmigm, params, TNGparams):
     PDF : array
         2D PDF
     """
-    figmTNG = 0.837
-    fxTNG = 0.125
+    figmTNG = 0.797
+    fxTNG = 0.131
+#    figmTNG, fxTNG = 0.76, 0.20
     x, y = dmhalo, dmigm
     figm, fx = params
     A, mu_x, mu_y, sigma_x, sigma_y, rho = TNGparams
@@ -206,11 +207,11 @@ def log_prior(params):
     """
     figm, fx, mu, sigma = params
 
-    if 0.0 < figm < 1.1:
-        if 0. < fx < 1:
+    if 0.0 < figm < 1.25:
+        if 0. < fx < 1.25:
             if 0 < mu < 9:
                 if 0.01 < sigma < 2.5:
-                    if figm + fx < 1.1:
+                    if figm + fx < 1.5:
                         return 0
             
     return -np.inf
@@ -369,56 +370,6 @@ def log_posterior_mcquinn(params, zfrb, dmex, IGMparams,
 
     return lp + log_like
 
-def main_mcquinn(data, mcmc_filename='test.h5'):
-    # Start parameters for MCMC chain 
-    figm_start, F_start, mu_start, sigma_start = 1.0, 0.5, 5, 1
-
-    param_dict = {'dmmin': 0, 
-                  'dmmax': 1700, 
-                  'ndm': 100,
-                  'zmin': 0, 
-                  'zmax': 1.5, 
-                  'nz': 100,
-                  'dmexmin': 0, 
-                  'dmexmax': 1700, 
-                  'ndmex': 100,
-                  'nmcmc_steps' : 5000,
-                  'nwalkers' : 32,
-                  'ndim' : 4,
-                  'pguess' : (figm_start, F_start, mu_start, sigma_start),                
-                  }
-
-    zfrb, dmfrb = data
-
-    nmcmc_steps = param_dict['nmcmc_steps']
-    nwalkers = param_dict['nwalkers']
-    ndim = param_dict['ndim']
-    pguess = param_dict['pguess']
-
-    A_spl, C0_spl, sigmaDM_spl = zhang_params()
-    # Generate the array of parameters from TNG FRB simulations
-    IGMparams = get_params_zhang(zfrb, A_spl, C0_spl, sigmaDM_spl)
-    dmigm_allbaryons_arr = np.array([get_dmigm(zfrb[xx]) for xx in range(len(zfrb))])
-
-    nsamp = nmcmc_steps
-    pos = pguess + 1e-3 * np.random.randn(nwalkers, ndim)
-
-    if os.path.exists(mcmc_filename):
-        print("Picking up %s where it left off \n" % mcmc_filename)        
-        backend = emcee.backends.HDFBackend(mcmc_filename)
-    else:
-        print("Starting %s from scratch \n" % mcmc_filename)
-        backend = emcee.backends.HDFBackend(mcmc_filename)
-        backend.reset(nwalkers, ndim)
-
-    with Pool(32) as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior_mcquinn,
-                                        args=(zfrb, dmfrb, IGMparams, 
-                                              dmigm_allbaryons_arr), 
-                                             pool=pool, backend=backend)
-        
-        sampler.run_mcmc(pos, nsamp, progress=True)        
-
 def main(data, param_dict, mcmc_filename='test.h5'):
     
     zfrb, dmfrb = data
@@ -465,48 +416,59 @@ def main(data, param_dict, mcmc_filename='test.h5'):
                                              pool=pool, backend=backend)
         sampler.run_mcmc(pos, nsamp, progress=True)
         
-    flat_samples = sampler.get_chain(discard=0, thin=1, flat=True)
-    np.save('flat_samples_figm_%dsteps.npy' % len(flat_samples), flat_samples)
 
     return flat_samples 
 
 if __name__ == '__main__':
-    fnfrb = './allfrbs_11march24.csv'
-    ftoken_output = 'figm_allsurveys_dmlt0p88.h5'
-    zmin_sample = 0.0
+    datadir = '/home/connor/software/baryon_paper/data/'
+    fnfrb = datadir + 'allfrbs_13march24y.csv'
+    ftoken_output = 'figm_dsaonly_march20b_allFRBs_dmmax1500.h5'
+    zmin_sample = 0.01
     zmax_sample = np.inf
-    telecopes = 'all'
+    telecopes = 'DSA-110'
     max_fractional_MWDM = 0.4
     dmhalo = 30.
-
+    exclude_frbs = ['ada', 'FRB20190520B']
+    nmcmc_steps = 2000
+    
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
                                    telescope=telecopes, secure_host=True,
-                                   max_fractional_MWDM=max_fractional_MWDM)
+                                   max_fractional_MWDM=max_fractional_MWDM,
+                                   exclude_names=exclude_frbs)
 
     zfrb = frb_catalog['redshift'].values
     dmfrb = frb_catalog['dm_exgal'].values - dmhalo
-
+    dmmax = frb_catalog['dmmax'].values
+    
+    data = (zfrb, dmfrb)
+    
     # Start parameters for MCMC chain 
     figm_start, fX_start, mu_start, sigma_start = 0.8, 0.15, 5, 1
 
     param_dict = {'dmmin': 0, 
-                  'dmmax': 1700, 
+                  'dmmax': 1500., 
                   'ndm': 100,
                   'zmin': 0, 
                   'zmax': 1.5, 
                   'nz': 100,
                   'dmexmin': 0, 
-                  'dmexmax': 1700, 
+                  'dmexmax': 1500, 
                   'ndmex': 100,
-                  'nmcmc_steps' : 5000,
+                  'nmcmc_steps' : nmcmc_steps,
                   'nwalkers' : 32,
                   'ndim' : 4,
                   'pguess' : (figm_start, fX_start, mu_start, sigma_start),                
                   }
+
+
+#    data = np.load('/home/connor/TNG300_Total_DMvsZ.pdf.npy')
+#    ztng = np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1., 1.5, 2, 3, 4, 5])
+#    dmfrb = data[:8, np.random.randint(0, 5000, 5)].flatten() 
+#    zfrb = (ztng[:8, None] * np.ones([1, 5])).flatten()
+#    dmhost = np.random.lognormal(4.5, 0.8, len(zfrb)) * (1+zfrb)**-1
+
+#    data = (zfrb, dmfrb + dmhost)
     
-    
-    data = (zfrb, dmfrb)
-   
     mcmc_filename = datadir + "emceechain_%s" % ftoken_output
     data_filename = datadir + "data_%s" % ftoken_output
 
