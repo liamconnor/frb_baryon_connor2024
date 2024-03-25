@@ -349,13 +349,12 @@ def parse_arguments():
     parser.add_argument("--nmcmc", type=int, default=2000, help="Number of MCMC steps")
     parser.add_argument("--dmhalo", type=float, default=30., help="Halo DM value")
     parser.add_argument("--dmmax", type=float, default=1500., help="Maximum DM value")
+    parser.add_argument("--fnout", type=str, default='', help="Output file string")
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_arguments()
-    print(args)
-    exit()
 
     datadir = '/home/connor/software/baryon_paper/data/'
     fnfrb = datadir + 'allfrbs_13march24y.csv'
@@ -367,7 +366,20 @@ if __name__ == '__main__':
     dmhalo = 30.
     exclude_frbs = ['ada', 'FRB20190520B']
     nmcmc_steps = 2000
-    
+
+    datadir = '/home/connor/software/baryon_paper/data/'
+    fnfrb = datadir + 'allfrbs_13march24y.csv'
+    zmin_sample = args.zmin
+    zmax_sample = args.zmax
+    telecopes = args.telescope
+    max_fractional_MWDM = args.dmmw
+    dmhalo = args.dmhalo
+    exclude_frbs = ['ada', 'FRB20190520B']
+    nmcmc_steps = args.nmcmc
+    ftoken_output = args.fnout + '_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
+                        (zmin_sample, zmax_sample, telecopes)
+
+
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
                                    telescope=telecopes, secure_host=True,
                                    max_fractional_MWDM=max_fractional_MWDM,
