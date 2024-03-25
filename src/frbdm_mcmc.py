@@ -338,20 +338,24 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(description="Your script description")
 
-    # Required argument with short and long options
-    parser.add_argument("-t", "--telescope", required=True, type=str,
-                        help="Name of the telescope to use")
-
     # Optional arguments with short and long options, type casting
-    parser.add_argument("--zmin", type=float, help="Minimum redshift value")
-    parser.add_argument("--zmax", type=float, help="Maximum redshift value")
-    parser.add_argument("--dmmw", type=float, help="Dark matter mass to weak lensing conversion factor")
+    parser.add_argument("-t", "--telescope", type=str,
+                        help="Name of the telescope to use",
+                        default='all')
+    parser.add_argument("--zmin", type=float, default=0.0, help="Minimum redshift value")
+    parser.add_argument("--zmax", type=float, default=np.inf, help="Maximum redshift value")
+    parser.add_argument("--dmmw", type=float, default=0.4, help="Maximum fractional MW DM")
+    parser.add_argument("--exclude", type=str, default=None, help="Exclude FRB names")  
+    parser.add_argument("--nmcmc", type=int, default=2000, help="Number of MCMC steps")
+    parser.add_argument("--dmhalo", type=float, default=30., help="Halo DM value")
+    parser.add_argument("--dmmax", type=float, default=1500., help="Maximum DM value")
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_arguments()
     print(args)
+    exit()
 
     datadir = '/home/connor/software/baryon_paper/data/'
     fnfrb = datadir + 'allfrbs_13march24y.csv'
