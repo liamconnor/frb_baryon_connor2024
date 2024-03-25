@@ -182,6 +182,7 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo,
         lp = np.log(P[kk, ll])
         
         if np.isnan(lp):
+            print("Returning a bad Likelihood")
             return -np.inf
         else:
             logP += lp
@@ -207,11 +208,11 @@ def log_prior(params):
     """
     figm, fx, mu, sigma = params
 
-    if 0.0 < figm < 1.25:
-        if 0. < fx < 1.25:
+    if 0.0 < figm < 1.1:
+        if 0. < fx < 1.1:
             if 0 < mu < 9:
                 if 0.01 < sigma < 2.5:
-                    if figm + fx < 1.5:
+                    if figm + fx < 1.25:
                         return 0
             
     return -np.inf
@@ -422,10 +423,10 @@ def main(data, param_dict, mcmc_filename='test.h5'):
 if __name__ == '__main__':
     datadir = '/home/connor/software/baryon_paper/data/'
     fnfrb = datadir + 'allfrbs_13march24y.csv'
-    ftoken_output = 'figm_dsaonly_march20b_allFRBs_dmmax1500.h5'
-    zmin_sample = 0.01
+    ftoken_output = 'figm_allfrbs_March25_dmmax1500.h5'
+    zmin_sample = 0.005
     zmax_sample = np.inf
-    telecopes = 'DSA-110'
+    telecopes = 'all'
     max_fractional_MWDM = 0.4
     dmhalo = 30.
     exclude_frbs = ['ada', 'FRB20190520B']
@@ -436,7 +437,7 @@ if __name__ == '__main__':
                                    max_fractional_MWDM=max_fractional_MWDM,
                                    exclude_names=exclude_frbs)
 
-    zfrb = frb_catalog['redshift'].values
+    zfrb = np.abs(frb_catalog['redshift'].values)
     dmfrb = frb_catalog['dm_exgal'].values - dmhalo
     dmmax = frb_catalog['dmmax'].values
     
@@ -459,15 +460,6 @@ if __name__ == '__main__':
                   'ndim' : 4,
                   'pguess' : (figm_start, fX_start, mu_start, sigma_start),                
                   }
-
-
-#    data = np.load('/home/connor/TNG300_Total_DMvsZ.pdf.npy')
-#    ztng = np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1., 1.5, 2, 3, 4, 5])
-#    dmfrb = data[:8, np.random.randint(0, 5000, 5)].flatten() 
-#    zfrb = (ztng[:8, None] * np.ones([1, 5])).flatten()
-#    dmhost = np.random.lognormal(4.5, 0.8, len(zfrb)) * (1+zfrb)**-1
-
-#    data = (zfrb, dmfrb + dmhost)
     
     mcmc_filename = datadir + "emceechain_%s" % ftoken_output
     data_filename = datadir + "data_%s" % ftoken_output
