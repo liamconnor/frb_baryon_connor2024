@@ -358,17 +358,6 @@ if __name__ == '__main__':
 
     datadir = '/home/connor/software/baryon_paper/data/'
     fnfrb = datadir + 'allfrbs_13march24y.csv'
-    ftoken_output = 'figm_allfrbs_March25_dmmax1500.h5'
-    zmin_sample = 0.005
-    zmax_sample = np.inf
-    telecopes = 'all'
-    max_fractional_MWDM = 0.4
-    dmhalo = 30.
-    exclude_frbs = ['ada', 'FRB20190520B']
-    nmcmc_steps = 2000
-
-    datadir = '/home/connor/software/baryon_paper/data/'
-    fnfrb = datadir + 'allfrbs_13march24y.csv'
     zmin_sample = args.zmin
     zmax_sample = args.zmax
     telecopes = args.telescope
