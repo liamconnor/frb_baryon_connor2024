@@ -368,7 +368,6 @@ if __name__ == '__main__':
     ftoken_output = args.fnout + '_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
                         (zmin_sample, zmax_sample, telecopes)
 
-
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
                                    telescope=telecopes, secure_host=True,
                                    max_fractional_MWDM=max_fractional_MWDM,

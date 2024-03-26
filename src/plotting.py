@@ -3,6 +3,8 @@ from scipy.interpolate import UnivariateSpline
 from astropy import constants as con
 from astropy import units as u
 
+import frbdm_mcmc
+
 plt.rcParams.update({
                     'font.size': 12,
                     'font.family': 'serif',
@@ -682,13 +684,576 @@ def macquart_heatmap(Prob, fnout='macquart_heatmap.pdf'):
     plot(zex, arr[:, 2], c='w', lw=1, alpha=0.25)
     plot(zex, arr[:, 3], c='w', lw=1, alpha=0.25)
     plot(zex, arr[:, 4], c='w', lw=1, alpha=0.25)
-    plot(zex, arr[:, 5], c='C0', lw=1.5, alpha=0.25)
+    plot(zex, arr[:, 5], c='C0', lw=1.5, alpha=0.25)figure(figsize=(10.5,10.5))
 
-    scatter(zaskap, dmaskex,  marker='s', color='lightpink', s=30, edgecolor='k',)
-    scatter(zdsa, dmdsa, color='lightcyan', alpha=1, s=55, edgecolor='k',)
+vmx, vmn = 5e-3, 1e-6
+cmap = 'magma_r'
+alph = 0.75
+
+subplot(331)
+PP = P1z03
+PP /= np.nansum(PP)
+
+imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+#plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+plt.xlim(0, 750.)
+plt.ylim(1500, 10)
+plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.95$\n$f_{X}=0.05$', fontsize=18)
+plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+subplot(332)
+PP = P2z03
+PP /= np.nansum(PP)
+
+imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+#plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+#plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+plt.xlim(0, 750.)
+plt.ylim(1500, 10)
+plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.80$\n$f_{X}=0.125$', fontsize=18)
+plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+subplot(333)
+PP = P3z03
+PP /= np.nansum(PP)
+imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+#plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+#plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+plt.xlim(0, 750.)
+plt.ylim(1500, 10)
+plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.55$\n$f_{X}=0.25$', fontsize=16)
+plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+subplot(334)
+PP = P1
+PP /= np.nansum(PP)
+
+imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+#plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+plt.xlim(0, 750.)
+plt.ylim(1500, 10)
+plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.95$\n$f_{X}=0.125$', fontsize=16)
+plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+subplot(335)
+PP = P2
+PP /= np.nansum(PP)
+
+imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+#plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+#plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+plt.xlim(0, 750.)
+plt.ylim(1500, 10)
+plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.80$\n$f_{X}=0.125$', fontsize=16)
+plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+subplot(336)
+PP = P3
+PP /= np.nansum(PP)
+
+imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+#plt.clabel(contours, inline=True, fontsize=8, fmt='%1.2f')
+plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+#plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+plt.xlim(0, 750.)
+plt.ylim(1500, 10)
+plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.55$\n$f_{X}=0.125$', fontsize=18)
+plt.title('$P(DM_{IGM}, DM_{X})$')
+
+fnfrb = '/home/connor/software/baryon_paper/data/allfrbs_13march24y.csv'
+zmin_sample = 0.01
+zmax_sample = np.inf
+telecopes = 'all'
+max_fractional_MWDM = 0.4
+dmhalo = 30.
+
+exclude_frbs = ['ada', 'FRB20190520B']
+
+frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample,
+                               telescope=telecopes, secure_host=True,
+                               max_fractional_MWDM=max_fractional_MWDM,
+                               exclude_names=exclude_frbs)
+
+zfrb = np.abs(frb_catalog['redshift'].values)
+dmfrb = frb_catalog['dm_exgal'].values - dmhalo
+
+def get_1d_values(p, x):
+    pcum = np.cumsum(p)
+    pmedian = x[np.argmin(np.abs(pcum - 0.5))]
+    p_p1sig = x[np.argmin(np.abs(pcum - 0.84))]
+    p_n1sig = x[np.argmin(np.abs(pcum - 0.16))]
+    p_p2sig = x[np.argmin(np.abs(pcum - 0.95))]
+    p_n2sig = x[np.argmin(np.abs(pcum - 0.05))]
+    pmean = np.nansum(x * p)
+        
+    return pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean
+
+def get_contours(p, x):
+    nz = p.shape[1]
+    arr = np.zeros([nz, 6])
+    
+    for ii in range(nz):
+        pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean = get_1d_values(p[:, ii], x)
+        
+        arr[ii, 0] = pmedian
+        arr[ii, 1] = p_p1sig
+        arr[ii, 2] = p_n1sig
+        arr[ii, 3] = p_n2sig
+        arr[ii, 4] = p_p2sig
+        arr[ii, 5] = pmean
+    
+    return arr
+
+def get_1d_values(p, x):
+    pcum = np.cumsum(p)
+    pmedian = x[np.argmin(np.abs(pcum - 0.5))]
+    p_p1sig = x[np.argmin(np.abs(pcum - 0.84))]
+    p_n1sig = x[np.argmin(np.abs(pcum - 0.16))]
+    p_p2sig = x[np.argmin(np.abs(pcum - 0.95))]
+    p_n2sig = x[np.argmin(np.abs(pcum - 0.05))]
+    pmean = np.nansum(x * p)
+        
+    return pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean
+
+def get_contours(p, x):
+    nz = p.shape[1]
+    arr = np.zeros([nz, 6])
+    
+    for ii in range(nz):
+        pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean = get_1d_values(p[:, ii], x)
+        
+        arr[ii, 0] = pmedian
+        arr[ii, 1] = p_p1sig
+        arr[ii, 2] = p_n1sig
+        arr[ii, 3] = p_n2sig
+        arr[ii, 4] = p_p2sig
+        arr[ii, 5] = pmean
+    
+    return arr
+
+def make_TNG_exampleplot():
+    ndm = 1000
+    dmmin = 10
+    dmmax = 2000
+    nz = 1
+
+    # Generate the IGM DM values
+    dmi = np.linspace(dmmin, dmmax, ndm)
+    # Generate halo DM values
+    dmh = np.linspace(dmmin, dmmax, ndm)
+    # Generate the total exgal DM values
+    dmex = np.linspace(dmexmin, dmexmax, ndm)
+
+    zex = np.linspace(zmin, zmax, nz)
+
+    # Generate the array of parameters from TNG FRB simulations
+    tngparams_arr = generate_TNGparam_arr([1.])
+
+    # Generate the meshgrid of halo, IGM, and total exgal DM values
+    dmhalo, dmigm = np.meshgrid(dmh, dmi)
+
+    params = [0.95, 0.05]
+
+    P1 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
+
+    params = [0.8, 0.125]
+
+    P2 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
+
+    params = [0.55, 0.25]
+
+    P3 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
+
+    # Generate the IGM DM values
+    dmi = np.linspace(dmmin, dmmax, ndm)
+    # Generate halo DM values
+    dmh = np.linspace(dmmin, dmmax, ndm)
+    # Generate the total exgal DM values
+    dmex = np.linspace(dmexmin, dmexmax, ndm)
+
+    zex = np.linspace(zmin, zmax, nz)
+
+    # Generate the array of parameters from TNG FRB simulations
+    tngparams_arr = generate_TNGparam_arr([0.5])
+
+    # Generate the meshgrid of halo, IGM, and total exgal DM values
+    dmhalo, dmigm = np.meshgrid(dmh, dmi)
+
+    params = [0.95, 0.05]
+
+    P1z03 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
+
+    params = [0.8, 0.125]
+
+    P2z03 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
+
+    params = [0.55, 0.25]
+
+    P3z03 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
+
+    figure(figsize=(10.5,10.5))
+
+    vmx, vmn = 5e-3, 1e-6
+    cmap = 'magma_r'
+    alph = 0.75
+
+    subplot(331)
+    PP = P1z03
+    PP /= np.nansum(PP)
+
+    imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+    contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+    #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlim(0, 750.)
+    plt.ylim(1500, 10)
+    plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.95$\n$f_{X}=0.05$', fontsize=18)
+    plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+    subplot(332)
+    PP = P2z03
+    PP /= np.nansum(PP)
+
+    imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+    contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+    #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlim(0, 750.)
+    plt.ylim(1500, 10)
+    plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.80$\n$f_{X}=0.125$', fontsize=18)
+    plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+    subplot(333)
+    PP = P3z03
+    PP /= np.nansum(PP)
+    imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+    contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+    #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlim(0, 750.)
+    plt.ylim(1500, 10)
+    plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.55$\n$f_{X}=0.25$', fontsize=16)
+    plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+    subplot(334)
+    PP = P1
+    PP /= np.nansum(PP)
+
+    imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+    contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+    #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlim(0, 750.)
+    plt.ylim(1500, 10)
+    plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.95$\n$f_{X}=0.125$', fontsize=16)
+    plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+    subplot(335)
+    PP = P2
+    PP /= np.nansum(PP)
+
+    imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+
+    contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+    #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlim(0, 750.)
+    plt.ylim(1500, 10)
+    plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.80$\n$f_{X}=0.125$', fontsize=16)
+    plt.title('$P\,(DM_{IGM}, DM_{X})$')
+
+    subplot(336)
+    PP = P3
+    PP /= np.nansum(PP)
+
+    imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
+    contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
+    #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.2f')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlim(0, 750.)
+    plt.ylim(1500, 10)
+    plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.55$\n$f_{X}=0.125$', fontsize=18)
+    plt.title('$P(DM_{IGM}, DM_{X})$')
+
+    fnfrb = '/home/connor/software/baryon_paper/data/allfrbs_13march24y.csv'
+    zmin_sample = 0.01
+    zmax_sample = np.inf
+    telecopes = 'all'
+    max_fractional_MWDM = 0.4
+    dmhalo = 30.
+
+    exclude_frbs = ['ada', 'FRB20190520B']
+
+    frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample,
+                                telescope=telecopes, secure_host=True,
+                                max_fractional_MWDM=max_fractional_MWDM,
+                                exclude_names=exclude_frbs)
+
+    zfrb = np.abs(frb_catalog['redshift'].values)
+    dmfrb = frb_catalog['dm_exgal'].values - dmhalo
+
+    nz, ndm = 150, 150
+
+    dmi = np.linspace(0, 1750, ndm)
+    dmh = np.linspace(0, 1750, ndm)
+    dmex = np.linspace(15, 1750, ndm)
+    zex_ = np.linspace(0.01, 1.45, nz)
+
+    dmhalo, dmigm, dmexgal = np.meshgrid(dmh, dmi, dmex)
+
+    tngparams_arr = generate_TNGparam_arr(zex_)
+
+    plt.subplot(337)
+    plt.title('$P\,(DM_{ex}|z_s)$')
+
+    params = [0.95, 0.05, 4.5, 0.9]
+
+    ProbFull, logp = frbdm_mcmc.log_likelihood_all(params, zdsa, dmdsa, 
+                                                   dmhalo, 
+                                                   dmigm, dmexgal, zex_, 
+                                                   tngparams_arr)
+
+    arr = get_contours(ProbFull, dmex)
+
+    P_ = ProbFull[::-1]
+    arr = get_contours(ProbFull, dmex)
+
+    imshow(P_**0.5,
+        aspect='auto', cmap=cmap,
+        extent=[0, zex_.max(), 
+                dmexgal.min(), dmexgal.max()], 
+        vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
+
+    scatter(zfrb, dmfrb, marker='o', color='white', s=15, edgecolor='k', lw=1.25)
+
+    #cbar = fig.colorbar(cax)
+    # Setting the colorbar label with a larger font size
+    #cbar.set_label(label=r'$\log P\,(DM_{ex} \,|\,z_s)$', fontsize=22)
+
+    plot(zex_, arr[:, 0], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 1], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 2], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 3], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 4], ':', c='w', lw=1, alpha=0.85)
+
     xlabel('Redshift', fontsize=18)
     ylabel("Exgal DM", fontsize=18)
-    ylim(50, 1550)
-    xlim(0, 1.5)
-    legend(['non-DSA FRBs', 'DSA-110 FRBs'])
-    savefig(fnout)
+    ylim(50, 1750)
+    xlim(0, 1.45)
+    #legend(['DSA-110 FRBs', 'non-DSA FRBs', 'Macquart et al. (2020)'], fontsize=16)
+
+    muh = params[2]
+    sigh = params[3]
+
+    dmhost = np.exp(muh + sigh**2/2.)
+    sigmahost = np.sqrt(np.exp(sigh**2-1) * np.exp(2*muh + sigh**2))
+
+    plt.text(0.95, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
+
+    xlabel('Redshift', fontsize=18)
+    ylim(50, 1750)
+    xlim(0, 1.45)
+
+    plt.subplot(338)
+    plt.title('$P\,(DM_{ex}|z_s)$')
+
+    params = [0.80, 0.125, 4.5, 0.9]
+
+    ProbFull, logp = func(params, zdsa, dmdsa, dmhalo, 
+                dmigm, dmexgal, zex_, tngparams_arr)
+    arr = get_contours(ProbFull, dmex)
+
+    P_ = ProbFull[::-1]
+
+    imshow(P_**0.5,
+        aspect='auto', cmap=cmap,
+        extent=[0, zex_.max(), 
+                dmexgal.min(), dmexgal.max()], 
+        vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
+
+    plot(zex_, arr[:, 0], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 1], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 2], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 3], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 4], ':', c='w', lw=1, alpha=0.85)
+
+    scatter(zfrb, dmfrb, marker='o', color='white', s=15, edgecolor='k', lw=1.25)
+    ylim(30, 1750)
+    plt.text(0.95, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
+
+    plt.subplot(339)
+    plt.title('$P\,(DM_{ex}|z_s)$')
+
+    params = [0.55, 0.25, 4.5, 0.9]
+
+    ProbFull, logp = func(params, zdsa, dmdsa, dmhalo, 
+                dmigm, dmexgal, zex_, tngparams_arr)
+
+    arr = get_contours(ProbFull, dmex)
+    P_ = ProbFull[::-1]
+
+    imshow(P_**0.5,
+        aspect='auto', cmap=cmap,
+        extent=[0, zex_.max(), 
+                dmexgal.min(), dmexgal.max()], 
+        vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
+
+    xlabel('Redshift', fontsize=18)
+    ylim(50, 1750)
+    xlim(0, 1.45)
+
+    plot(zex_, arr[:, 0], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 1], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 2], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 3], ':', c='w', lw=1, alpha=0.85)
+    plot(zex_, arr[:, 4], ':', c='w', lw=1, alpha=0.85)
+
+    scatter(zfrb, dmfrb, marker='o', color='white', s=15, edgecolor='k', lw=1.25)
+    plt.text(0.95, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
+
+    tight_layout()
+    tight_layout()
+    tight_layout()
+    #savefig('dsa110_frbs_macquart_feb2024_fake.pdf')
+    #text(0.05, 1250, str(logp), color='white')
+
+    #plt.savefig('ExampleBiVariate_DM.pdf')
+
+
+def make_macquart_plot_dsa():
+    fnfrb = '/home/connor/software/baryon_paper/data/allfrbs_13march24y.csv'
+    zmin_sample = 0.01
+    zmax_sample = np.inf
+    telecopes = 'all'
+    max_fractional_MWDM = 0.4
+    dmhalo = 30.
+
+    exclude_frbs = ['ada', 'FRB20190520B']
+
+    frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample,
+                                telescope=telecopes, secure_host=True,
+                                max_fractional_MWDM=max_fractional_MWDM,
+                                exclude_names=exclude_frbs)
+
+    zfrb = frb_catalog['redshift'].values
+    dmfrb = frb_catalog['dm_exgal'].values - dmhalo
+
+    inddsa = np.where(frb_catalog['survey']=='DSA-110')[0]
+    indaskap = np.where(frb_catalog['survey']!='DSA-110')[0]
+
+    zdsa = np.abs(zfrb[inddsa])
+    dmdsa = dmfrb[inddsa]
+
+    zaskap = np.abs(zfrb[indaskap])
+    dmaskex = dmfrb[indaskap]
+
+    plt.rcParams.update({
+                        'font.size': 12,
+                        'font.family': 'serif',
+                        'axes.labelsize': 14,
+                        'axes.titlesize': 15,
+                        'xtick.labelsize': 12,
+                        'ytick.labelsize': 12,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'xtick.top': True,
+                        'ytick.right': True,
+                        'lines.linewidth': 0.5,
+                        'lines.markersize': 5,
+                        'legend.borderaxespad': 1,
+                        'legend.frameon': True,
+                        'legend.loc': 'lower right'})
+
+    colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
+
+    nz, ndm = 250, 250
+
+    dmi = np.linspace(0, 1750, ndm)
+    dmh = np.linspace(0, 1750, ndm)
+    dmex = np.linspace(15, 1750, ndm)
+    zex = np.linspace(0.05, 1.45, nz)
+
+    dmhalo, dmigm, dmexgal = np.meshgrid(dmh, dmi, dmex)
+
+    tngparams_arr = generate_TNGparam_arr(zex)
+
+    PP, logp = frbdm_mcmc.log_likelihood_all([0.80, 0.135, 4.5, 0.94], 
+                                             zdsa, dmdsa, dmhalo, 
+                                             dmigm, dmexgal, zex, 
+                                             tngparams_arr)
+
+    arr = get_contours(PP, dmex)
+
+    ind_macquart=[]
+    for zmac_ii in zmac:
+        xx = np.where(np.abs(zmac_ii - zaskap) < 0.001)[0]
+        if len(xx):
+            xx = xx[0]
+        else:
+            continue
+        ind_macquart.append(xx)
+
+    fig, ax = plt.subplots(figsize=(12,7.8))
+
+    scatter(-10, 0, color='lightcoral', s=50, edgecolor='k',)
+    scatter(-10, 0, color='white', marker='s', alpha=1, s=50, edgecolor='k',)
+    scatter(-10, 0, color='cyan', marker='s', alpha=1, s=50, edgecolor='k',)
+
+    P_ = PP[::-1]
+    # Plotting the data
+    cax = ax.imshow(np.log(P_ ),
+        aspect='auto', cmap='afmhot',
+        extent=[0, zex.max(), 
+                dmexgal.min(), dmexgal.max()], 
+        vmax=-2.,vmin=-6, alpha=0.25)
+
+    cbar = fig.colorbar(cax)
+    # Setting the colorbar label with a larger font size
+    cbar.set_label(label=r'$\log P\,(DM_{ex} \,|\,z_s)$', fontsize=22)
+
+    plot(zex, arr[:, 0], ':', c='w', lw=1, alpha=0.85)
+    plot(zex, arr[:, 1], ':', c='w', lw=1, alpha=0.85)
+    plot(zex, arr[:, 2], ':', c='w', lw=1, alpha=0.85)
+    plot(zex, arr[:, 3], ':', c='w', lw=1, alpha=0.85)
+    plot(zex, arr[:, 4], ':', c='w', lw=1, alpha=0.85)
+    plot(zex, arr[:, 5], c='C0', lw=1.5, alpha=0.1)
+
+    scatter(zaskap, dmaskex, marker='s', color='white', s=45, edgecolor='k', lw=1.25)
+    scatter(zdsa, dmdsa, color='lightcoral', alpha=1, s=40, edgecolor='k', lw=1.35)
+    scatter(zaskap[ind_macquart], dmaskex[ind_macquart], 
+            c='cyan', marker='s', s=45, edgecolors='k', alpha=1.)
+
+    xlabel('Redshift', fontsize=20)
+    ylabel("Exgal DM", fontsize=20)
+    ylim(50, 1750)
+    xlim(0, 1.45)
+    legend(['DSA-110 FRBs', 'non-DSA FRBs', 'Macquart et al. (2020)'], fontsize=16)
+    tight_layout()
+    savefig('dsa110_frbs_macquart_feb2024.pdf')
+    #text(0.05, 1250, str(logp), color='white')
