@@ -5,6 +5,7 @@ from astropy import units as u
 from astropy.io import fits
 from astropy.cosmology import Planck18 as cosmo
 
+import reader
 
 # Define a function to cross-match FRB sources with a galaxy cluster catalog
 def cross_match_frb_with_clusters(frb_sources, cluster_catalog,
@@ -584,7 +585,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
         in_footprint_total.append(in_footprint)
 
     # Legacy 'DESIDR9_NGC_group_12p5Msun.npy'
-    fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_allsky_group_12p5Msun.npy'
+    fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_NGC_group_12p5Msun.npy'
     legacy_clusters = read_legacy(fn_legacy, logM_min=min_mass_legacy)
     _ = cross_match_frb_with_clusters(frb_sources, legacy_clusters,
                                       thresh_bperp_mpc=thresh_bperp_mpc,
@@ -606,14 +607,14 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
 
     return match_dataframe, in_footprint
 
-fn_frb_dsa='/Users/liamconnor/Desktop/dsafrbsnov23.csv'
-fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
-fn_frb_dsa = '/Users/liamconnor/Desktop/dsa110_frbs_dec23.csv'
+fn_frb_dsa='/Users/liamconnor/Desktop/allfrbs_13march24y.csv'
+#fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
+#fn_frb_dsa = '/Users/liamconnor/Desktop/dsa110_frbs_dec23.csv'
 #fn_CHIME='/Users/liamconnor/work/projects/frb/chime_cgm/data/chimefrbcat1.csv'
 #fn_CHIME = 'CHIME/chime_basecat1_catalog.csv'
 
-frb_sources = read_frb_catalog(fn_frb_dsa)
-#frb_sources = read_frb_catalog(fn_frb_nondsa)
+#frb_sources = read_frb_catalog(fn_frb_dsa)
+frb_sources = reader.read_frb_catalog(fn_frb_dsa)
 
 #frb_sources = read_CHIME(fn_CHIME)
 #frb_sources = frb_sources[frb_sources['redshift'] > 0.5]

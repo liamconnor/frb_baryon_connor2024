@@ -39,3 +39,10 @@ def read_frb_catalog(fnfrb, zmin=0.0, zmax=np.inf,
             frb_catalog.drop(indexNames, inplace=True)
 
     return frb_catalog
+
+def print_to_latex():
+    print("This is a function that prints to latex")
+
+    frb_catalog = read_frb_catalog('frb_catalog.csv')
+
+    
