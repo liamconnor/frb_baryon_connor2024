@@ -1,10 +1,11 @@
 import os
+
+import numpy as np
 import h5py
 import argparse
-import numpy as np
 import pandas as pd
 from multiprocessing import Pool
-
+import warnings
 import emcee
 from scipy.integrate import quad
 from scipy.interpolate import UnivariateSpline
@@ -16,6 +17,8 @@ from scipy.integrate import dblquad, quad
 from astropy import constants as con, units as u
 
 from reader import read_frb_catalog
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def dmigm_integrand(z, figm=1, fe=7/8., alpha=0.0):
     figm = figm * (1 + alpha*z)
@@ -149,7 +152,7 @@ def log_likelihood_all_dblquad(zfrb, dmexgal, params, tngparams_arr):
 
     return logP
 
-def log_likelihood_all(params, zfrb, dmfrb, dmhalo, 
+def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey, 
                        dmigm, dmexgal, zex, tngparams_arr):
     """ Log likelihood for all FRBs
     """
@@ -158,27 +161,38 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo,
     
     P = np.empty((ndm, nz))
 
-    # Iterate over FRB redshifts and compute the likelihood
+    # Iterate over all redshifts and compute the likelihood
     # in DM at that redshift for those baryon parameters
-    for ii in range(len(zex)):        
+    for ii in range(len(zex)):
         pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, 
                                            zex[ii], params, tngparams_arr[ii])
-        
+
         for kk, dd in enumerate(dmex):
             p, dh = pp[:, :, kk], dmhost[:, :, kk]
             P[kk, ii] = np.nansum(p[dh > 0], axis=-1)
     
     # Normalize the likelihoods on a per-redshift basis
-    P = P / np.nansum(P, 0)
+    #P = P / np.nansum(P, 0)
     
     nfrb = len(zfrb)
     
     logP = 0
-    
+
+    # Step through each FRB in the dataset and
+    # find the Likelihood bin that is nearest
+    # to the measured DM and z.
     for nn in range(nfrb):
+        # Find bin with DMmax of the survey that detected FRB nn
+        dmmax_bin = np.argmin(np.abs(dmex - dmmax_survey[nn]))
+        
+        # Nearest redshift bin
         ll = np.argmin(np.abs(zfrb[nn] - zex))
+        # Nearest DM bin
         kk = np.argmin(np.abs(dmfrb[nn] - dmex))
-        lp = np.log(P[kk, ll])
+        
+        Prob_normalized = P[:, ll] / np.nansum(P[:dmmax_bin+1, ll])
+        # Loglikelihood in that bin
+        lp = np.log(Prob_normalized[kk])
         
         if np.isnan(lp):
             print("Returning a bad Likelihood")
@@ -186,7 +200,7 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo,
         else:
             logP += lp
 
-    return P, logP
+    return logP
 
 def log_prior(params):
     """ Logarithmic priors on the baryon parameters
@@ -207,28 +221,28 @@ def log_prior(params):
     """
     figm, fx, mu, sigma = params
 
-    if 0.0 < figm < 1.1:
-        if 0. < fx < 1.1:
-            if 0 < mu < 9:
+    if 0.0 < figm < 1.25:
+        if 0. < fx < 1.25:
+            if 0 < mu < 7:
                 if 0.01 < sigma < 2.5:
-                    if figm + fx < 1.25:
+                    if figm + fx < 2.:
                         return 0
             
     return -np.inf
 
-def log_posterior(params, zfrb, dmfrb, dmhalo, dmigm,
+def log_posterior(params, zfrb, dmfrb, dmmax_survey, dmhalo, dmigm,
                   dmexgal, zex, tngparams_arr):
     """ Log posterior for the baryon parameters. First 
     check if the parameters are within the prior range, 
     then compute the log likelihood."""
     log_pri = log_prior(params)
-    
+
     if not np.isfinite(log_pri):
         return -np.inf
-    
-    log_like = log_likelihood_all(params, zfrb, dmfrb, dmhalo, 
+
+    log_like = log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
                                   dmigm, dmexgal, zex, 
-                                  tngparams_arr)[1]
+                                  tngparams_arr)
     if not np.isfinite(log_like):
         return -np.inf
     
@@ -290,6 +304,7 @@ def main(data, param_dict, mcmc_filename='test.h5'):
     nwalkers = param_dict['nwalkers']
     ndim = param_dict['ndim']
     pguess = param_dict['pguess']
+    dmmax_survey = param_dict['dmmax_survey']
 
     # Generate the IGM DM values
     dmi = np.linspace(dmmin, dmmax, ndm)
@@ -307,26 +322,26 @@ def main(data, param_dict, mcmc_filename='test.h5'):
     dmhalo, dmigm, dmexgal = np.meshgrid(dmh, dmi, dmex)
 
     nsamp = nmcmc_steps
-    pos = pguess + 1e-3 * np.random.randn(nwalkers, ndim)
+    pos = pguess + 1e-2 * np.random.randn(nwalkers, ndim)
 
     if os.path.exists(mcmc_filename):
         print("Picking up %s where it left off \n" % mcmc_filename)        
         backend = emcee.backends.HDFBackend(mcmc_filename)
+        pos = None
     else:
         print("Starting %s from scratch \n" % mcmc_filename)
         backend = emcee.backends.HDFBackend(mcmc_filename)
         backend.reset(nwalkers, ndim)
 
+
     with Pool(64) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior,
-                                        args=(zfrb, dmfrb, dmhalo,
+                                        args=(zfrb, dmfrb, dmmax_survey, dmhalo,
                                              dmigm, dmexgal, zex, 
                                              tngparams_arr), 
                                              pool=pool, backend=backend)
         sampler.run_mcmc(pos, nsamp, progress=True)
         
-
-    return flat_samples 
 
 def parse_arguments():
     """
@@ -357,7 +372,7 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     datadir = '/home/connor/software/baryon_paper/data/'
-    fnfrb = datadir + 'allfrbs_13march24y.csv'
+    fnfrb = datadir + 'allfrbs_naturesample.csv'
     zmin_sample = args.zmin
     zmax_sample = args.zmax
     telecopes = args.telescope
@@ -365,7 +380,7 @@ if __name__ == '__main__':
     dmhalo = args.dmhalo
     exclude_frbs = ['ada', 'FRB20190520B']
     nmcmc_steps = args.nmcmc
-    ftoken_output = args.fnout + '_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
+    ftoken_output = args.fnout + 'April8_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
                         (zmin_sample, zmax_sample, telecopes)
 
 
@@ -376,25 +391,39 @@ if __name__ == '__main__':
 
     zfrb = np.abs(frb_catalog['redshift'].values)
     dmfrb = frb_catalog['dm_exgal'].values - dmhalo
-    dmmax = frb_catalog['dmmax'].values
+    dmmax_survey = frb_catalog['dmmax'].values    
+    
+    """
+    print("SIMULATION RUN!")
+    zall = np.load('/home/connor/RedshiftsHaloFilTotal.npy')
+    DMall = np.load('/home/connor/DMsHaloFilTotal.npy')
+
+    ind = np.where((zall[:, 2] < 1.5) & (zall[:, 2] > 0.025) & (DMall[:, 2] < 2000.))[0]
+    zall, DMall = zall[ind][::500, 2], DMall[ind][::500, 2]
+    ind_rand = np.random.randint(0, len(zall), 1)
+    DMhost = np.random.lognormal(3.5, 0.15, len(zall))
+    zfrb = zall#[ind_rand]
+    dmfrb = DMall + DMhost * (1+zall[:])**-1
+    """
     
     data = (zfrb, dmfrb)
     
     # Start parameters for MCMC chain 
-    figm_start, fX_start, mu_start, sigma_start = 0.8, 0.15, 5, 1
+    figm_start, fX_start, mu_start, sigma_start = 1.0, 0.5, 6.0, 0.25
 
     param_dict = {'dmmin': 0, 
-                  'dmmax': 1500., 
+                  'dmmax': 2000., 
                   'ndm': 100,
                   'zmin': 0, 
                   'zmax': 1.5, 
                   'nz': 100,
                   'dmexmin': 0, 
-                  'dmexmax': 1500, 
+                  'dmexmax': 2000, 
                   'ndmex': 100,
                   'nmcmc_steps' : nmcmc_steps,
                   'nwalkers' : 32,
                   'ndim' : 4,
+                  'dmmax_survey' : dmmax_survey,
                   'pguess' : (figm_start, fX_start, mu_start, sigma_start),                
                   }
     
