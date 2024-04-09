@@ -170,9 +170,7 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
         for kk, dd in enumerate(dmex):
             p, dh = pp[:, :, kk], dmhost[:, :, kk]
             P[kk, ii] = np.nansum(p[dh > 0], axis=-1)
-    
-    # Normalize the likelihoods on a per-redshift basis
-    #P = P / np.nansum(P, 0)
+
     
     nfrb = len(zfrb)
     
@@ -189,13 +187,12 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
         ll = np.argmin(np.abs(zfrb[nn] - zex))
         # Nearest DM bin
         kk = np.argmin(np.abs(dmfrb[nn] - dmex))
-        
+        # Normalize the likelihoods on a per-redshift basis        
         Prob_normalized = P[:, ll] / np.nansum(P[:dmmax_bin+1, ll])
         # Loglikelihood in that bin
         lp = np.log(Prob_normalized[kk])
         
         if np.isnan(lp):
-            print("Returning a bad Likelihood")
             return -np.inf
         else:
             logP += lp
@@ -221,11 +218,11 @@ def log_prior(params):
     """
     figm, fx, mu, sigma = params
 
-    if 0.0 < figm < 1.25:
-        if 0. < fx < 1.25:
+    if 0.0 < figm < 1.1:
+        if 0. < fx < 1.1:
             if 0 < mu < 7:
                 if 0.01 < sigma < 2.5:
-                    if figm + fx < 2.:
+                    if figm + fx < 1.2:
                         return 0
             
     return -np.inf
@@ -380,7 +377,7 @@ if __name__ == '__main__':
     dmhalo = args.dmhalo
     exclude_frbs = ['ada', 'FRB20190520B']
     nmcmc_steps = args.nmcmc
-    ftoken_output = args.fnout + 'April8_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
+    ftoken_output = args.fnout + 'Apr8_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
                         (zmin_sample, zmax_sample, telecopes)
 
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
@@ -408,7 +405,7 @@ if __name__ == '__main__':
     data = (zfrb, dmfrb)
     
     # Start parameters for MCMC chain 
-    figm_start, fX_start, mu_start, sigma_start = 1.0, 0.5, 6.0, 0.25
+    figm_start, fX_start, mu_start, sigma_start = 0.8, 0.15, 4.5, 0.5
 
     param_dict = {'dmmin': 0, 
                   'dmmax': 2000., 
