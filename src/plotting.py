@@ -595,6 +595,86 @@ def get_contours(p, x):
     
     return arr
 
+def plot_fig2_corner():
+    import pygtc
+    from IPython.display import Math
+
+    #reader = emcee.backends.HDFBackend('/home/connor/software/baryon_paper/data/emceechain_figm_all_march2_nomark_noada.h5')
+    #samples = reader.get_chain()
+
+    #reader = emcee.backends.HDFBackend('/home/connor/software/baryon_paper/data/emceechain_figm_all_march2_nomark_noada.h5')
+    reader = emcee.backends.HDFBackend('/home/connor/software/baryon_paper/data/emceechain_April1_zmin0.01_zmax0.80_telall.h5')
+    samples_all = reader.get_chain(discard=300, thin=15, flat=True)
+    samples_all = samples_all[:]
+
+    #reader = emcee.backends.HDFBackend('/home/connor/software/baryon_paper/data/emceechain_figm_dsa_march7_nomark_noada_figmpfxmax.h5')
+    reader = emcee.backends.HDFBackend('/home/connor/software/baryon_paper/data/emceechain_April1_zmin0.01_zmax0.80_telall.h5')
+    samples_dsa = reader.get_chain(discard=200, thin=5, flat=True)
+
+    chainLabels = [r"All FRBs", "DSA-110 only"]
+
+    # List of parameter names, supports latex
+    # NOTE: For capital greek letters in latex mode, use \mathsf{}
+    names = [r'$f_{igm}$',r'$f_X$',r'$\mu$',r'$\sigma$']
+    #names = ['1', '2', '3', '4']
+
+
+    # Labels for the different chains
+
+    # List of Gaussian curves to plot
+    #(to represent priors): mean, width
+    # Empty () or None if no prior to plot
+    priors = ((),
+            (),
+            (),
+            (),)
+
+    # List of truth values, to mark best-fit or input values
+    # NOT a python array because of different lengths
+    # Here we choose two sets of truth values
+    truths = ((4, .5, None, .1, 0, None, None, 0),
+            (None, None, .3, 1, None, None, None, None))
+
+    # Labels for the different truths
+    truthLabels = ( 'the truth',
+                    'also true')
+
+    labels = [r'$f_{\mathrm{IGM}}$',
+            '$f_{X}$',
+            '$e^{\mu_{\mathrm{host}}}$',
+            '$\sigma_{\mathrm{host}}$']
+
+    names = labels
+
+    muh, sigh = samples_all[:, 2], samples_all[:, 3]
+    muh2, sigh2 = samples_dsa[:, 2], samples_dsa[:, 3]
+
+    #samples_all[:, 2] = np.exp(muh)
+    #samples[:, :, 3] = np.sqrt(np.exp(sigh**2-1) * np.exp(2*muh + sigh**2))
+    #samples_dsa[:, 2] = np.exp(muh2)
+    #samples2[:, :, 3] = np.sqrt(np.exp(sigh2**2-1) * np.exp(2*muh2 + sigh2**2))
+
+    # colorsOrder : list-like[nDims]
+    #     The color order for chains passed to `chains`. Default is ``['blues',
+    #     'oranges', 'greens', 'reds', 'purples', 'browns', 'pinks', 'grays',
+    #     'yellows', 'cyans']`
+
+    # Do the 
+    fig = pygtc.plotGTC(chains=[samples_all, samples_dsa],
+                                paramNames=names,
+                                chainLabels=chainLabels,
+                                priors=priors,
+                                customLabelFont={'size':18},
+                                figureSize='MNRAS_page',
+                                plotName='./BelowZ0p8.pdf', 
+                                customTickFont={'size':14},
+                                customLegendFont={'size':16},
+                                plotDensity=False,
+                                colorsOrder=['oranges','blues'],
+                                paramRanges=((0.0,1.1),(0,1.1),(2.5,5.6),(0,2.5)),
+                                sigmaContourLevels=True,
+                                nContourLevels=2
+                    )
 
 def macquart_heatmap(Prob, fnout='macquart_heatmap.pdf'):
     """ Make a 2D likelihood plot for 
@@ -848,11 +928,44 @@ def get_contours(p, x):
     
     return arr
 
+def likelihood_for_fig(params, zfrb, dmfrb, dmhalo, dmigm, dmexgal, zex, tngparams_arr):
+    nz, ndm = len(zex), len(dmhalo)
+    dmex = dmexgal[0,0]
+    
+    P = np.empty((ndm, nz))
+
+    for ii in range(len(zex)):
+        pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, zex[ii], params, tngparams_arr[ii])
+        
+        for dmii, dd in enumerate(dmex):
+            p, dh = pp[:, :, dmii], dmhost[:, :, dmii]
+            P[dmii, ii] = np.nansum(p[dh > 0], axis=-1)
+    
+    P = P / np.nansum(P, 0)
+    
+    nfrb = len(zfrb)
+    
+    logP = 0
+    
+    for nn in range(nfrb):
+        ll = np.argmin(np.abs(zfrb[nn] - zex))
+        kk = np.argmin(np.abs(dmfrb[nn] - dmex))
+        lp = np.log(P[kk, ll])
+        
+        if np.isnan(lp):
+            print(nn, zfrb[nn], dmfrb[nn])
+            return -np.inf
+        else:
+            logP += lp
+
+    return P, logP
+
 def make_TNG_exampleplot():
-    ndm = 1000
+    ndm = 150
     dmmin = 10
-    dmmax = 2000
-    nz = 1
+    dmmax = 1750
+    nz = 150
+    redshift1, redshift2 = 0.5, 1.0
 
     # Generate the IGM DM values
     dmi = np.linspace(dmmin, dmmax, ndm)
@@ -864,7 +977,7 @@ def make_TNG_exampleplot():
     zex = np.linspace(zmin, zmax, nz)
 
     # Generate the array of parameters from TNG FRB simulations
-    tngparams_arr = generate_TNGparam_arr([1.])
+    tngparams_arr = generate_TNGparam_arr([redshift2])
 
     # Generate the meshgrid of halo, IGM, and total exgal DM values
     dmhalo, dmigm = np.meshgrid(dmh, dmi)
@@ -873,11 +986,11 @@ def make_TNG_exampleplot():
 
     P1 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
 
-    params = [0.8, 0.125]
+    params = [0.8, 0.15]
 
     P2 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
 
-    params = [0.55, 0.25]
+    params = [0.5, 0.5]
 
     P3 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
 
@@ -891,7 +1004,7 @@ def make_TNG_exampleplot():
     zex = np.linspace(zmin, zmax, nz)
 
     # Generate the array of parameters from TNG FRB simulations
-    tngparams_arr = generate_TNGparam_arr([0.5])
+    tngparams_arr = generate_TNGparam_arr([redshift1])
 
     # Generate the meshgrid of halo, IGM, and total exgal DM values
     dmhalo, dmigm = np.meshgrid(dmh, dmi)
@@ -900,17 +1013,17 @@ def make_TNG_exampleplot():
 
     P1z03 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
 
-    params = [0.8, 0.125]
+    params = [0.8, 0.15]
 
     P2z03 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
 
-    params = [0.55, 0.25]
+    params = [0.50, 0.50]
 
     P3z03 = pdm_cosmic(dmhalo, dmigm, params, tngparams_arr[0])
 
     figure(figsize=(10.5,10.5))
 
-    vmx, vmn = 5e-3, 1e-6
+    vmx, vmn = 50e-3, 0.0
     cmap = 'magma_r'
     alph = 0.75
 
@@ -922,11 +1035,11 @@ def make_TNG_exampleplot():
 
     contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
     #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
-    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
-    plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)', fontsize=18)
+    plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)', fontsize=18)
     plt.xlim(0, 750.)
     plt.ylim(1500, 10)
-    plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.95$\n$f_{X}=0.05$', fontsize=18)
+    plt.text(375, 1400, '$z_s=0.5$\n$f_{IGM}=0.95$\n$f_{X}=0.05$', fontsize=16)
     plt.title('$P\,(DM_{IGM}, DM_{X})$')
 
     subplot(332)
@@ -937,11 +1050,11 @@ def make_TNG_exampleplot():
 
     contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
     #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
-    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)', fontsize=18)
     #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
     plt.xlim(0, 750.)
     plt.ylim(1500, 10)
-    plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.80$\n$f_{X}=0.125$', fontsize=18)
+    plt.text(375, 1400, '$z_s=0.5$\n$f_{IGM}=0.80$\n$f_{X}=0.15$', fontsize=16)
     plt.title('$P\,(DM_{IGM}, DM_{X})$')
 
     subplot(333)
@@ -951,11 +1064,11 @@ def make_TNG_exampleplot():
 
     contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
     #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
-    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)', fontsize=18)
     #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
     plt.xlim(0, 750.)
     plt.ylim(1500, 10)
-    plt.text(450, 1400, '$z_s=0.5$\n$f_{IGM}=0.55$\n$f_{X}=0.25$', fontsize=16)
+    plt.text(375, 1400, '$z_s=0.5$\n$f_{IGM}=0.50$\n$f_{X}=0.50$', fontsize=16)
     plt.title('$P\,(DM_{IGM}, DM_{X})$')
 
     subplot(334)
@@ -965,11 +1078,11 @@ def make_TNG_exampleplot():
     imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
     contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
     #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
-    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
-    plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)', fontsize=18)
+    plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)', fontsize=18)
     plt.xlim(0, 750.)
     plt.ylim(1500, 10)
-    plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.95$\n$f_{X}=0.125$', fontsize=16)
+    plt.text(375, 1400, '$z_s=1.0$\n$f_{IGM}=0.95$\n$f_{X}=0.05$', fontsize=16)
     plt.title('$P\,(DM_{IGM}, DM_{X})$')
 
     subplot(335)
@@ -980,11 +1093,11 @@ def make_TNG_exampleplot():
 
     contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
     #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.3f')
-    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)', fontsize=18)
     #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
     plt.xlim(0, 750.)
     plt.ylim(1500, 10)
-    plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.80$\n$f_{X}=0.125$', fontsize=16)
+    plt.text(375, 1400, '$z_s=1.0$\n$f_{IGM}=0.80$\n$f_{X}=0.15$', fontsize=16)
     plt.title('$P\,(DM_{IGM}, DM_{X})$')
 
     subplot(336)
@@ -994,14 +1107,14 @@ def make_TNG_exampleplot():
     imshow(PP**0.5, aspect='auto', extent=[0, dmmax, dmmax, 0], cmap=cmap, vmax=vmx, vmin=vmn)
     contours = plt.contour(dmi, dmh, PP, 3, colors='lightpink', linewidths=1.)
     #plt.clabel(contours, inline=True, fontsize=8, fmt='%1.2f')
-    plt.xlabel('DM$_X$ (pc cm$^{-3}$)')
+    plt.xlabel('DM$_X$ (pc cm$^{-3}$)', fontsize=18)
     #plt.ylabel(r'DM$_{\mathrm{IGM}}$ (pc cm$^{-3}$)')
     plt.xlim(0, 750.)
     plt.ylim(1500, 10)
-    plt.text(450, 1400, '$z_s=1.0$\n$f_{IGM}=0.55$\n$f_{X}=0.125$', fontsize=18)
+    plt.text(375, 1400, '$z_s=1.0$\n$f_{IGM}=0.50$\n$f_{X}=0.50$', fontsize=16)
     plt.title('$P(DM_{IGM}, DM_{X})$')
 
-    fnfrb = '/home/connor/software/baryon_paper/data/allfrbs_13march24y.csv'
+    fnfrb = '/home/connor/software/baryon_paper/data/naturesample_april2024.csv'
     zmin_sample = 0.01
     zmax_sample = np.inf
     telecopes = 'all'
@@ -1011,12 +1124,39 @@ def make_TNG_exampleplot():
     exclude_frbs = ['ada', 'FRB20190520B']
 
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample,
-                                telescope=telecopes, secure_host=True,
-                                max_fractional_MWDM=max_fractional_MWDM,
-                                exclude_names=exclude_frbs)
+                                   telescope=telecopes, secure_host=True,
+                                   max_fractional_MWDM=max_fractional_MWDM,
+                                   exclude_names=exclude_frbs)
 
     zfrb = np.abs(frb_catalog['redshift'].values)
     dmfrb = frb_catalog['dm_exgal'].values - dmhalo
+
+    def get_1d_values(p, x):
+        pcum = np.cumsum(p)
+        pmedian = x[np.argmin(np.abs(pcum - 0.5))]
+        p_p1sig = x[np.argmin(np.abs(pcum - 0.84))]
+        p_n1sig = x[np.argmin(np.abs(pcum - 0.16))]
+        p_p2sig = x[np.argmin(np.abs(pcum - 0.95))]
+        p_n2sig = x[np.argmin(np.abs(pcum - 0.05))]
+        pmean = np.nansum(x * p)
+
+        return pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean
+
+    def get_contours(p, x):
+        nz = p.shape[1]
+        arr = np.zeros([nz, 6])
+
+        for ii in range(nz):
+            pmedian, p_p1sig, p_n1sig, p_n2sig, p_p2sig, pmean = get_1d_values(p[:, ii], x)
+
+            arr[ii, 0] = pmedian
+            arr[ii, 1] = p_p1sig
+            arr[ii, 2] = p_n1sig
+            arr[ii, 3] = p_n2sig
+            arr[ii, 4] = p_p2sig
+            arr[ii, 5] = pmean
+
+        return arr
 
     nz, ndm = 150, 150
 
@@ -1025,6 +1165,8 @@ def make_TNG_exampleplot():
     dmex = np.linspace(15, 1750, ndm)
     zex_ = np.linspace(0.01, 1.45, nz)
 
+    zdsa, dmdsa = zex_, dmex
+
     dmhalo, dmigm, dmexgal = np.meshgrid(dmh, dmi, dmex)
 
     tngparams_arr = generate_TNGparam_arr(zex_)
@@ -1032,12 +1174,10 @@ def make_TNG_exampleplot():
     plt.subplot(337)
     plt.title('$P\,(DM_{ex}|z_s)$')
 
-    params = [0.95, 0.05, 4.5, 0.9]
+    params = [0.95, 0.05, 4.5, 0.7]
 
-    ProbFull, logp = frbdm_mcmc.log_likelihood_all(params, zdsa, dmdsa, 
-                                                   dmhalo, 
-                                                   dmigm, dmexgal, zex_, 
-                                                   tngparams_arr)
+    ProbFull, logp = likelihood_for_fig(params, zdsa, dmdsa, dmhalo, 
+                   dmigm, dmexgal, zex_, tngparams_arr)
 
     arr = get_contours(ProbFull, dmex)
 
@@ -1045,10 +1185,10 @@ def make_TNG_exampleplot():
     arr = get_contours(ProbFull, dmex)
 
     imshow(P_**0.5,
-        aspect='auto', cmap=cmap,
-        extent=[0, zex_.max(), 
-                dmexgal.min(), dmexgal.max()], 
-        vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
+           aspect='auto', cmap=cmap,
+           extent=[0, zex_.max(), 
+                   dmexgal.min(), dmexgal.max()], 
+          vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
 
     scatter(zfrb, dmfrb, marker='o', color='white', s=15, edgecolor='k', lw=1.25)
 
@@ -1074,7 +1214,7 @@ def make_TNG_exampleplot():
     dmhost = np.exp(muh + sigh**2/2.)
     sigmahost = np.sqrt(np.exp(sigh**2-1) * np.exp(2*muh + sigh**2))
 
-    plt.text(0.95, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
+    plt.text(0.75, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
 
     xlabel('Redshift', fontsize=18)
     ylim(50, 1750)
@@ -1083,19 +1223,22 @@ def make_TNG_exampleplot():
     plt.subplot(338)
     plt.title('$P\,(DM_{ex}|z_s)$')
 
-    params = [0.80, 0.125, 4.5, 0.9]
+    params = [0.80, 0.15, 4.5, 0.7]
+    
+    dmmax_survey = np.ones_like(dmdsa) * 2000.
 
-    ProbFull, logp = func(params, zdsa, dmdsa, dmhalo, 
-                dmigm, dmexgal, zex_, tngparams_arr)
+    ProbFull, logp = likelihood_for_fig(params, zdsa, dmdsa, dmhalo, 
+                   dmigm, dmexgal, zex_, tngparams_arr)
+
     arr = get_contours(ProbFull, dmex)
 
     P_ = ProbFull[::-1]
 
     imshow(P_**0.5,
-        aspect='auto', cmap=cmap,
-        extent=[0, zex_.max(), 
-                dmexgal.min(), dmexgal.max()], 
-        vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
+           aspect='auto', cmap=cmap,
+           extent=[0, zex_.max(), 
+                   dmexgal.min(), dmexgal.max()], 
+          vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
 
     plot(zex_, arr[:, 0], ':', c='w', lw=1, alpha=0.85)
     plot(zex_, arr[:, 1], ':', c='w', lw=1, alpha=0.85)
@@ -1105,24 +1248,25 @@ def make_TNG_exampleplot():
 
     scatter(zfrb, dmfrb, marker='o', color='white', s=15, edgecolor='k', lw=1.25)
     ylim(30, 1750)
-    plt.text(0.95, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
-
+    plt.text(0.75, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
+    xlabel('Redshift', fontsize=18)
+    
     plt.subplot(339)
     plt.title('$P\,(DM_{ex}|z_s)$')
 
-    params = [0.55, 0.25, 4.5, 0.9]
+    params = [0.50, 0.50, 4.5, 0.7]
 
-    ProbFull, logp = func(params, zdsa, dmdsa, dmhalo, 
-                dmigm, dmexgal, zex_, tngparams_arr)
+    ProbFull, logp = likelihood_for_fig(params, zdsa, dmdsa, dmhalo, 
+                   dmigm, dmexgal, zex_, tngparams_arr)
 
     arr = get_contours(ProbFull, dmex)
     P_ = ProbFull[::-1]
 
     imshow(P_**0.5,
-        aspect='auto', cmap=cmap,
-        extent=[0, zex_.max(), 
-                dmexgal.min(), dmexgal.max()], 
-        vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
+           aspect='auto', cmap=cmap,
+           extent=[0, zex_.max(), 
+                   dmexgal.min(), dmexgal.max()], 
+          vmax=np.exp(-2.)**0.5,vmin=np.exp(-6)**0.5, alpha=alph)
 
     xlabel('Redshift', fontsize=18)
     ylim(50, 1750)
@@ -1135,17 +1279,13 @@ def make_TNG_exampleplot():
     plot(zex_, arr[:, 4], ':', c='w', lw=1, alpha=0.85)
 
     scatter(zfrb, dmfrb, marker='o', color='white', s=15, edgecolor='k', lw=1.25)
-    plt.text(0.95, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
+    plt.text(0.75, 200, '$f_{IGM}=$%0.2f\n$f_{X}=$%0.2f' % (params[0], params[1]), fontsize=16)
 
     tight_layout()
     tight_layout()
     tight_layout()
-    #savefig('dsa110_frbs_macquart_feb2024_fake.pdf')
-    #text(0.05, 1250, str(logp), color='white')
-
-    #plt.savefig('ExampleBiVariate_DM.pdf')
-
-
+    savefig('Example_DM_Method.pdf')
+    
 def make_macquart_plot_dsa():
     fnfrb = '/home/connor/software/baryon_paper/data/allfrbs_13march24y.csv'
     zmin_sample = 0.01
@@ -1257,3 +1397,65 @@ def make_macquart_plot_dsa():
     tight_layout()
     savefig('dsa110_frbs_macquart_feb2024.pdf')
     #text(0.05, 1250, str(logp), color='white')
+
+def dmz_by_gastype():
+    zall = np.load('RedshiftsHaloFilTotal.npy')
+    DMall = np.load('DMsHaloFilTotal.npy')
+
+    figure(figsize=(9, 9.))
+
+    DMhost = np.random.lognormal(4.75, 0.85, len(zall)) * (1 + zall[:,2])**-1.
+
+    dmin, dmmax = 0, 2000.
+    zmin, zmax = 0, 1.5
+
+    subplot(221)
+    scatter(zall[:,0],DMall[:,0],s=1,alpha=0.4,c='darkgreen')
+    ylim(dmmin, dmmax)
+    xlim(zmin, zmax)
+    title('Halos DM$_X$', fontsize=17)
+    xlabel('Redshift', fontsize=17)
+    ylabel('DM (pc cm$^{-3}$)', fontsize=17)
+    plot(zf, dm_avg[:, 0], lw=2, c='lightgreen')
+
+    subplot(222)
+    scatter(zall[:,1],DMall[:,1],s=1,alpha=0.15,c='grey')
+    ylim(dmmin, dmmax)
+    xlim(zmin, zmax)
+    ylabel('DM (pc cm$^{-3}$)', fontsize=17)
+    title('IGM DM$_{IGM}$', fontsize=17)
+    xlabel('Redshift', fontsize=17)
+    plot(zf, dm_avg[:, 1], lw=2, c='lightgrey')
+
+    subplot(223)
+    scatter(zall[:,2],DMall[:,2],s=1,alpha=0.3,c='k')
+    ylim(dmmin, dmmax)
+    xlim(zmin, zmax)
+    title('Total Cosmic DM$_{cos}$', fontsize=17)
+    xlabel('Redshift', fontsize=17)
+    ylabel('DM (pc cm$^{-3}$)')
+    plot(zf, dm_avg[:, 2], lw=2, c='lightblue')
+    #ax.set_facecolor('xkcd:salmon')
+    #ax.set_facecolor((1.0, 0.47, 0.42))
+
+    text(0.725, 150, '$P\,(DM_{cos} | z_s)$', fontsize=20, color='k')
+
+    subplot(224)
+    ylabel('DM (pc cm$^{-3}$)', fontsize=17)
+    X = np.histogram2d(DMall[:, 2] + DMhost, zall[:,2], bins=(50,50), range=((0, 2000),(0, 2)))[0]
+    imshow(np.log(X[::-1]), aspect='auto', extent=(0, 2, 0, 2000), vmax=5, vmin=0, interpolation='nearest')
+    scatter(zall[:,2],DMall[:,2]+DMhost,s=1,alpha=0.05,c='red')
+
+    ylim(dmmin, dmmax)
+    xlim(zmin, zmax)
+    title('DM$_{ex} = $ DM$_{cos}$ $+$ DM$_{host}$', fontsize=17)
+    xlabel('Redshift', fontsize=17)
+    text(0.725, 150, '$P\,(DM_{ex} | z_s)$', fontsize=20, color='C1')
+    tight_layout()
+    savefig('Illustris_DM_Partition2x2.png')
+
+
+if __name__ == '__main__':
+    make_TNG_exampleplot()
+    make_macquart_plot_dsa()
+    dmz_by_gastype()    

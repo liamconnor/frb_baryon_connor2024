@@ -10,7 +10,6 @@ import emcee
 from scipy.integrate import quad
 from scipy.interpolate import UnivariateSpline
 import jax.numpy as jnp
-from jax import jit
 from tqdm import tqdm
 from astropy.cosmology import Planck18 as P
 from scipy.integrate import dblquad, quad

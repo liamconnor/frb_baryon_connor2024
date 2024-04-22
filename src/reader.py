@@ -43,6 +43,9 @@ def read_frb_catalog(fnfrb, zmin=0.0, zmax=np.inf,
 def print_to_latex():
     print("This is a function that prints to latex")
 
-    frb_catalog = read_frb_catalog('frb_catalog.csv')
+    data = read_frb_catalog('frb_catalog.csv')
 
-    
+    include_cols = ['name','dm_exgal','redshift','survey','ne2001']
+    data['dm_exgal'].values = np.round(data['dm_exgal'].values, 1)
+
+    print(data[include_cols].to_latex(caption='This is the caption'))

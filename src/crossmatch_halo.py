@@ -495,6 +495,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
 
     in_footprint_total = []
 
+    print("Trying PSZ2")
     # PSZ2
     fn_PSZ2 = '/Users/liamconnor/work/projects/baryons/data/PSZ2_cat.fits'
     PSZ2_cat = read_PSZ2(fn_PSZ2)
@@ -523,6 +524,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
     except:
         pass
 
+    print("Trying MCXC Cluster cat")
     # MCXC
     fn_mcxc = '/Users/liamconnor/work/projects/baryons/data/MCXC/mcxc.fits'
     MCXC_clusters = read_MCXC(fn_mcxc)
@@ -545,6 +547,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
     fn_ROSAT = '/Users/liamconnor/work/projects/baryons/data/RXGCC_cluster_cat/table_rxgcc.fits'
     ROSAT_clusters = read_ROSAT(fn_ROSAT)
 
+    print("Trying ROSAT RXGCC")
     _ = cross_match_frb_with_clusters(frb_sources, 
                                       ROSAT_clusters, 
                                       thresh_bperp_mpc=thresh_bperp_mpc,
@@ -562,6 +565,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
     if len(in_footprint):
         in_footprint_total.append(in_footprint)
 
+    print("Trying Xclass now")
     # XClass
     fn_xclass = '/Users/liamconnor/work/projects/baryons/data/xclass/Xclass_cat.fit'
     xclass_clusters = read_xclass(fn_xclass)
@@ -584,6 +588,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
     if len(in_footprint):
         in_footprint_total.append(in_footprint)
 
+    print("Trying Legacy now")
     # Legacy 'DESIDR9_NGC_group_12p5Msun.npy'
     fn_legacy = '/Users/liamconnor/work/projects/baryons/data/DESIDR9/DESIDR9_NGC_group_12p5Msun.npy'
     legacy_clusters = read_legacy(fn_legacy, logM_min=min_mass_legacy)
