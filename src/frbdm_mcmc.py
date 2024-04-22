@@ -170,7 +170,6 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
         for kk, dd in enumerate(dmex):
             p, dh = pp[:, :, kk], dmhost[:, :, kk]
             P[kk, ii] = np.nansum(p[dh > 0], axis=-1)
-
     
     nfrb = len(zfrb)
     
@@ -377,7 +376,7 @@ if __name__ == '__main__':
     dmhalo = args.dmhalo
     exclude_frbs = ['ada', 'FRB20190520B']
     nmcmc_steps = args.nmcmc
-    ftoken_output = args.fnout + 'Apr8_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
+    ftoken_output = args.fnout + 'Apr14_dmlower_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
                         (zmin_sample, zmax_sample, telecopes)
 
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
@@ -387,8 +386,13 @@ if __name__ == '__main__':
 
     zfrb = np.abs(frb_catalog['redshift'].values)
     dmfrb = frb_catalog['dm_exgal'].values - dmhalo
-    dmmax_survey = frb_catalog['dmmax'].values    
-    
+    dmmax_survey = frb_catalog['dmmax'].values
+#    print("Doing a test!")
+#    in1500 = np.where(dmmax_survey==1500)[0]
+#    print(dmmax_survey[in1500])
+#    dmmax_survey[in1500] = dmmax_survey[in1500] * np.random.uniform(0.75, 1, len(in1500))
+    dmfrb *= 0.90
+
     """
     print("SIMULATION RUN!")
     zall = np.load('/home/connor/RedshiftsHaloFilTotal.npy')
