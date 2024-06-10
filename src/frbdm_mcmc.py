@@ -14,6 +14,8 @@ from tqdm import tqdm
 from astropy.cosmology import Planck18 as P
 from scipy.integrate import dblquad, quad
 from astropy import constants as con, units as u
+import jax.numpy as jnp
+from jax import jit, vmap
 
 from reader import read_frb_catalog
 
@@ -149,6 +151,60 @@ def log_likelihood_all_dblquad(zfrb, dmexgal, params, tngparams_arr):
         logP += np.log(p)
 
     return logP
+
+@jit
+def pdm_cosmic(dmhalo, dmigm, params, TNGparams):
+    figmTNG = 0.797
+    fxTNG = 0.131
+    x, y = dmhalo, dmigm
+    figm, fx = params
+    A, mu_x, mu_y, sigma_x, sigma_y, rho = TNGparams
+    mu_y += jnp.log(figm / figmTNG)
+    mu_x += jnp.log(fx / fxTNG)
+    term1 = -((jnp.log(x) - mu_x)**2 / sigma_x**2 + (jnp.log(y) - mu_y)**2 / sigma_y**2)
+    term2 = 2 * rho * (jnp.log(x) - mu_x) * (jnp.log(y) - mu_y) / (sigma_x * sigma_y)
+    B = (2 * jnp.pi * sigma_x * sigma_y * x * y * jnp.sqrt(1 - rho**2))
+    return A / B * jnp.exp((term1 - term2) / (2 * (1 - rho**2)))
+
+@jit
+def pdm_product_numerical(dmhalo, dmigm, dmexgal, zfrb, params, TNGparams):
+    figm, fx, mu, sigma = params
+    dmhost = dmexgal - dmhalo - dmigm
+    pcosmic = vmap(pdm_cosmic, in_axes=(0, 0, None, None))(dmhalo, dmigm, (figm, fx), TNGparams)
+    phost = vmap(pdmhost, in_axes=(0, None, None))(dmhost * (1+zfrb), mu, sigma)
+    return pcosmic * phost, dmhost
+
+@jit
+def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey, dmigm, dmexgal, zex, tngparams_arr):
+    nz, ndm = len(zex), len(dmhalo)
+    dmex = dmexgal[0,0]
+    
+    P = jnp.empty((ndm, nz))
+    for ii in range(len(zex)):
+        pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, zex[ii], params, tngparams_arr[ii])
+        for kk, dd in enumerate(dmex):
+            p, dh = pp[:, :, kk], dmhost[:, :, kk]
+            P = P.at[kk, ii].set(jnp.nansum(p[dh > 0], axis=-1))
+    
+    nfrb = len(zfrb)
+    
+    logP = 0
+    for nn in range(nfrb):
+        dmmax_bin = jnp.argmin(jnp.abs(dmex - dmmax_survey[nn]))
+        ll = jnp.argmin(jnp.abs(zfrb[nn] - zex))
+        kk = jnp.argmin(jnp.abs(dmfrb[nn] - dmex))
+        Prob_normalized = P[:, ll] / jnp.nansum(P[:dmmax_bin+1, ll])
+        lp = jnp.log(Prob_normalized[kk])
+        
+        logP += jnp.where(jnp.isnan(lp), -jnp.inf, lp)
+    return logP
+
+@jit
+def pdmhost(dmhost, mu, sigma):
+    """ Log-normal PDF for the host DM."""
+    prob = 1/(dmhost * jnp.sqrt(2*np.pi) * sigma)
+    prob *= jnp.exp(-(jnp.log(dmhost) - mu)**2 / (2*sigma**2))
+    return prob
 
 def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey, 
                        dmigm, dmexgal, zex, tngparams_arr):
