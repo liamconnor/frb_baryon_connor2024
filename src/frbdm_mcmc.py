@@ -174,29 +174,52 @@ def pdm_product_numerical(dmhalo, dmigm, dmexgal, zfrb, params, TNGparams):
     phost = vmap(pdmhost, in_axes=(0, None, None))(dmhost * (1+zfrb), mu, sigma)
     return pcosmic * phost, dmhost
 
-@jit
-def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey, dmigm, dmexgal, zex, tngparams_arr):
+def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey, 
+                       dmigm, dmexgal, zex, tngparams_arr):
+    """ Log likelihood for all FRBs
+    """
     nz, ndm = len(zex), len(dmhalo)
     dmex = dmexgal[0,0]
     
-    P = jnp.empty((ndm, nz))
+    P = np.empty((ndm, nz))
+
+    # Iterate over all redshifts and compute the likelihood
+    # in DM at that redshift for those baryon parameters
     for ii in range(len(zex)):
-        pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, zex[ii], params, tngparams_arr[ii])
+        pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, 
+                                           zex[ii], params, tngparams_arr[ii])
+        pp = np.array(pp)
+        dmhost = np.array(dmhost)
+        
         for kk, dd in enumerate(dmex):
             p, dh = pp[:, :, kk], dmhost[:, :, kk]
-            P = P.at[kk, ii].set(jnp.nansum(p[dh > 0], axis=-1))
+            P[kk, ii] = np.nansum(p[dh > 0], axis=-1)
     
     nfrb = len(zfrb)
     
     logP = 0
+
+    # Step through each FRB in the dataset and
+    # find the Likelihood bin that is nearest
+    # to the measured DM and z.
     for nn in range(nfrb):
-        dmmax_bin = jnp.argmin(jnp.abs(dmex - dmmax_survey[nn]))
-        ll = jnp.argmin(jnp.abs(zfrb[nn] - zex))
-        kk = jnp.argmin(jnp.abs(dmfrb[nn] - dmex))
-        Prob_normalized = P[:, ll] / jnp.nansum(P[:dmmax_bin+1, ll])
-        lp = jnp.log(Prob_normalized[kk])
+        # Find bin with DMmax of the survey that detected FRB nn
+        dmmax_bin = np.argmin(np.abs(dmex - dmmax_survey[nn]))
         
-        logP += jnp.where(jnp.isnan(lp), -jnp.inf, lp)
+        # Nearest redshift bin
+        ll = np.argmin(np.abs(zfrb[nn] - zex))
+        # Nearest DM bin
+        kk = np.argmin(np.abs(dmfrb[nn] - dmex))
+        # Normalize the likelihoods on a per-redshift basis        
+        Prob_normalized = P[:, ll] / np.nansum(P[:dmmax_bin+1, ll])
+        # Loglikelihood in that bin
+        lp = np.log(Prob_normalized[kk])
+        
+        if np.isnan(lp):
+            return -np.inf
+        else:
+            logP += lp
+
     return logP
 
 @jit
