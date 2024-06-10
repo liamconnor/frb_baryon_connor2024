@@ -91,7 +91,6 @@ def pdm_cosmic(dmhalo, dmigm, params, TNGparams):
     """
     figmTNG = 0.797
     fxTNG = 0.131
-#    figmTNG, fxTNG = 0.76, 0.20
     x, y = dmhalo, dmigm
     figm, fx = params
     A, mu_x, mu_y, sigma_x, sigma_y, rho = TNGparams
@@ -215,9 +214,9 @@ def log_prior(params):
     -np.inf if the parameters are outside the prior range
     """
     figm, fx, mu, sigma = params
-
-    if 0.0 < figm < 1.1:
-        if 0. < fx < 1.1:
+    
+    if 0.0 < figm < 1.0:
+        if 0. < fx < 1.0:
             if 0 < mu < 7:
                 if 0.01 < sigma < 2.5:
                     if figm + fx < 1.2:
@@ -329,7 +328,7 @@ def main(data, param_dict, mcmc_filename='test.h5'):
         backend.reset(nwalkers, ndim)
 
 
-    with Pool(64) as pool:
+    with Pool(32) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior,
                                         args=(zfrb, dmfrb, dmmax_survey, dmhalo,
                                              dmigm, dmexgal, zex, 
@@ -367,16 +366,21 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     datadir = '/home/connor/software/baryon_paper/data/'
-    fnfrb = datadir + 'allfrbs_naturesample.csv'
+    fnfrb = datadir + 'naturesample_april2024.csv'
     zmin_sample = args.zmin
     zmax_sample = args.zmax
     telecopes = args.telescope
     max_fractional_MWDM = args.dmmw
     dmhalo = args.dmhalo
-    exclude_frbs = ['ada', 'FRB20190520B']
+    exclude_frbs = ['ada', 'FRB20190520B', 'mayra', 'wilhelm']
+
+    if args.exclude is not None:
+        exclude_frbs = exclude_frbs + [args.exclude]
+        print(exclude_frbs)
+
     nmcmc_steps = args.nmcmc
-    ftoken_output = args.fnout + 'Apr14_dmlower_zmin%0.2f_zmax%0.2f_tel%s.h5' % \
-                        (zmin_sample, zmax_sample, telecopes)
+    ftoken_output = args.fnout + 'june8_zmin%0.2f_zmax%0.2f_tel%s_exclude%s.h5' % \
+                        (zmin_sample, zmax_sample, telecopes, args.exclude)
 
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
                                    telescope=telecopes, secure_host=True,
@@ -386,29 +390,11 @@ if __name__ == '__main__':
     zfrb = np.abs(frb_catalog['redshift'].values)
     dmfrb = frb_catalog['dm_exgal'].values - dmhalo
     dmmax_survey = frb_catalog['dmmax'].values
-#    print("Doing a test!")
-#    in1500 = np.where(dmmax_survey==1500)[0]
-#    print(dmmax_survey[in1500])
-#    dmmax_survey[in1500] = dmmax_survey[in1500] * np.random.uniform(0.75, 1, len(in1500))
-    dmfrb *= 0.90
-
-    """
-    print("SIMULATION RUN!")
-    zall = np.load('/home/connor/RedshiftsHaloFilTotal.npy')
-    DMall = np.load('/home/connor/DMsHaloFilTotal.npy')
-
-    ind = np.where((zall[:, 2] < 1.5) & (zall[:, 2] > 0.025) & (DMall[:, 2] < 2000.))[0]
-    zall, DMall = zall[ind][::500, 2], DMall[ind][::500, 2]
-    ind_rand = np.random.randint(0, len(zall), 1)
-    DMhost = np.random.lognormal(3.5, 0.15, len(zall))
-    zfrb = zall#[ind_rand]
-    dmfrb = DMall + DMhost * (1+zall[:])**-1
-    """
     
     data = (zfrb, dmfrb)
     
     # Start parameters for MCMC chain 
-    figm_start, fX_start, mu_start, sigma_start = 0.8, 0.15, 4.5, 0.5
+    figm_start, fX_start, mu_start, sigma_start = 0.78, 0.10, 4.25, 0.5
 
     param_dict = {'dmmin': 0, 
                   'dmmax': 2000., 
