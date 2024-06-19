@@ -613,6 +613,7 @@ def cross_match_all(frb_sources, thresh_bperp_mpc=1.5,
     return match_dataframe, in_footprint
 
 fn_frb_dsa='/Users/liamconnor/Desktop/allfrbs_13march24y.csv'
+fn_frb_dsa='../data/allfrbs_naturesample.csv'
 #fn_frb_nondsa='/Users/liamconnor/work/projects/baryons/data/frbdata/nondsa_frbs_nov2023.csv'
 #fn_frb_dsa = '/Users/liamconnor/Desktop/dsa110_frbs_dec23.csv'
 #fn_CHIME='/Users/liamconnor/work/projects/frb/chime_cgm/data/chimefrbcat1.csv'
