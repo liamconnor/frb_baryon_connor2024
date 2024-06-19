@@ -222,6 +222,10 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
     zex : array
         Redshifts at which to compute the PDF
     tngparams_arr : array
+
+    Returns:
+    --------
+    float : The log likelihood of the baryon parameters
     """
     nz, ndm = len(zex), len(dmhalo)
     dmex = dmexgal[0,0]
@@ -264,6 +268,8 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
         # Loglikelihood in that bin
         lp = np.log(Prob_normalized[kk])
         
+        # If any FRB produces a zero likelihood, return -inf
+        # as these parameters are now excluded.
         if np.isnan(lp):
             return -np.inf
         else:
@@ -271,7 +277,7 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
 
     return logP
 
-def log_prior(params):
+def log_prior(params, prior_dict):
     """ Logarithmic priors on the baryon parameters
 
     Parameters
@@ -288,23 +294,35 @@ def log_prior(params):
     0 if the parameters are within the prior range
     -np.inf if the parameters are outside the prior range
     """
+    if len(params) != 4:
+        print("Wrong number of parameters in log_prior. Exiting.")
+        return
+
+    if prior_dict is None:
+        return 0
+
     figm, fx, mu, sigma = params
     
-    if 0.0 < figm < 1.0:
-        if 0. < fx < 1.0:
-            if 0 < mu < 7:
-                if 0.01 < sigma < 2.5:
-                    if figm + fx < 1.0:
-                        return 0
-            
+    figmmin, figmmax = prior_dict['figmmin'], prior_dict['figmmax']
+    fxmin, fxmax = prior_dict['fxmin'], prior_dict['fxmax']
+    mumin, mumax = prior_dict['mumin'], prior_dict['mumax']
+    sigmin, sigmax = prior_dict['sigmin'], prior_dict['sigmax']
+    fcos_total_max = prior_dict['fcos_total_max']
+
+    if figmmin < figm < figmmax and fxmin < fx < fxmax \
+        and mumin < mu < mumax and sigmin < sigma < sigmax \
+        and figm + fx < fcos_total_max:
+
+        return 0
+
     return -np.inf
 
 def log_posterior(params, zfrb, dmfrb, dmmax_survey, dmhalo, dmigm,
-                  dmexgal, zex, tngparams_arr):
+                  dmexgal, zex, tngparams_arr, prior_dict):
     """ Log posterior for the baryon parameters. First 
     check if the parameters are within the prior range, 
     then compute the log likelihood."""
-    log_pri = log_prior(params)
+    log_pri = log_prior(params, prior_dict)
 
     if not np.isfinite(log_pri):
         return -np.inf
@@ -356,7 +374,7 @@ def get_params_zhang(zfrb, A_spl, C0_spl, sigmaDM_spl):
 def main(data, param_dict, mcmc_filename='test.h5'):
     
     zfrb, dmfrb = data
-
+    prior_dict = param_dict['prior_dict']
     dmmin, dmmax, ndm = param_dict['dmmin'], param_dict['dmmax'], param_dict['ndm']
     zmin, zmax, nz = param_dict['zmin'], param_dict['zmax'], param_dict['nz']
     dmexmin, dmexmax, ndmex = param_dict['dmexmin'], param_dict['dmexmax'], param_dict['ndmex']
@@ -398,7 +416,7 @@ def main(data, param_dict, mcmc_filename='test.h5'):
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior,
                                         args=(zfrb, dmfrb, dmmax_survey, dmhalo,
                                              dmigm, dmexgal, zex, 
-                                             tngparams_arr), 
+                                             tngparams_arr, prior_dict), 
                                              pool=pool, backend=backend)
         sampler.run_mcmc(pos, nsamp, progress=True)
         
@@ -463,6 +481,18 @@ if __name__ == '__main__':
     # Start parameters for MCMC chain 
     figm_start, fX_start, mu_start, sigma_start = 0.75, 0.10, 4.25, 0.5
 
+    # Bayesian priors on the baryon parameters
+    prior_dict = {'figmmin': 0.0,
+                'figmmax': 1.0,
+                'fxmin': 0.0,
+                'fxmax': 1.0,
+                'mumin': 0.0,
+                'mumax': 7.0,
+                'sigmin': 0.1,
+                'sigmax': 1.0,
+                'fcos_total_max': 1.2}
+    
+    # Parameters for the MCMC chain
     param_dict = {'dmmin': 0, 
                   'dmmax': 2000., 
                   'ndm': 100,
@@ -476,7 +506,8 @@ if __name__ == '__main__':
                   'nwalkers' : 32,
                   'ndim' : 4,
                   'dmmax_survey' : dmmax_survey,
-                  'pguess' : (figm_start, fX_start, mu_start, sigma_start),                
+                  'pguess' : (figm_start, fX_start, mu_start, sigma_start),
+                  'prior_dict' : prior_dict}
                   }
     
     mcmc_filename = datadir + "emceechain_%s" % ftoken_output
