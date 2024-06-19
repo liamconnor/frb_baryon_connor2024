@@ -10,6 +10,7 @@ This program has code for JAX-compiled MCMC fitting code using emcee. It's still
 Example usage:
 
 To run on all FRBs in the dataset with no selection criteria
+```sh
 python frbdm_mcmc_jit.py 
 
 To run only on DSA-110 discovered FRBs beyond z=0.0125 for 2000 MCMC steps
