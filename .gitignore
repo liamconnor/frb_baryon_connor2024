@@ -3,6 +3,7 @@
 *.h5
 *.pdf
 *.png
+notebooks/.*
 data/*
 publicdata/*
 __*
