@@ -1,3 +1,14 @@
+""" 
+MCMC code to fit the baryon parameters to the FRB DM data. This 
+is a JAX-compiled MCMC code, but is still far too slow. Please 
+feel free to submit a PR to speed things up! I didn't manage to 
+get it running on GPU yet.
+
+Author: Liam Connor
+Email: liam.dean.connor@gmail.com
+Data: 2024-06-19
+"""
+
 import os
 
 import numpy as np
@@ -63,47 +74,72 @@ def get_dmigm(zfrb, fd=1):
     return dm
 
 def generate_TNGparam_arr(zfrb):
-    """ Read in TNG300 parameter fits from Walker et al. 2023 
+    """ Read in TNG300 parameter fits based on Walker et al. 2023 
     and interpolate to the redshifts of the FRBs. These 
-    parameters fit a 2D logNormal distribution in 
+    parameters fit a 2D multivariate logNormal distribution in 
     the IGM and halo contributions to the FRB DM.
+
+    The parameter at each redshift is a 6D list:
+    [A, mu_dmx, mu_dmigm, sigma_dmx, sigma_dmigm, rho] which corresponds to the 
+    parameters of the logNormal distribution in DM halo and DM IGM.
     """
-#    TNGfits = np.load('/home/connor/TNG300-1/TNGparameters.npy')
     TNGfits = np.load('/home/connor/software/baryon_paper/src/tng_params_new.npy')
     nfrb = len(zfrb)
     arr = TNGfits
     tngparams_arr = np.zeros([nfrb, 6])
+
+    # The redshift snapshots at which the TNG parameters were fit
     ztng = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0, 1.5, 2, 3, 4, 5]
 
     A = UnivariateSpline(ztng, arr[:, 0], s=0)
-    dmx = UnivariateSpline(ztng, arr[:, 1], s=0)
-    dmigm = UnivariateSpline(ztng, arr[:, 2], s=0)
+    mu_dmx = UnivariateSpline(ztng, arr[:, 1], s=0)
+    mu_dmigm = UnivariateSpline(ztng, arr[:, 2], s=0)
     sigx = UnivariateSpline(ztng, arr[:, 3], s=0)
     sigigm = UnivariateSpline(ztng, arr[:, 4], s=0)
     rho = UnivariateSpline(ztng, arr[:, 5], s=0)
 
-    for xx in range(nfrb):
-        zz = zfrb[xx]
+    for ii in range(nfrb):
+        zz = zfrb[ii]
         Ai = A(zz).ravel()[0]
-        dmxi = dmx(zz).ravel()[0]
-        dmigmi = dmigm(zz).ravel()[0]
+        mu_dmxi = mu_dmx(zz).ravel()[0]
+        mu_dmigmi = mu_dmigm(zz).ravel()[0]
         sigxi = sigx(zz).ravel()[0]
         sigigmi = sigigm(zz).ravel()[0]
         rhoi = rho(zz).ravel()[0]
 
-        tngparams_arr[xx] = np.array([Ai, dmxi, dmigmi, sigxi, sigigmi, rhoi])
+        tngparams_arr[xx] = np.array([Ai, mu_dmxi, mu_dmigmi, sigxi, sigigmi, rhoi])
 
     return tngparams_arr
 
 @jit
-def pdm_cosmic(dmhalo, dmigm, params, TNGparams):
-    figmTNG = 0.797
-    fxTNG = 0.131
+def pdm_cosmic(dmhalo, dmigm, params, TNGparams, 
+               figm_baseline=0.797, fx_baseline=0.131):
+    """ 2D Multivariate Log-normal PDF for the cosmic DM contribution
+
+    Parameters:
+    -----------
+    dmhalo : float, array or meshgrid
+        The DM contribution from intervening halos
+    dmigm : float, array or meshgrid
+        The DM contribution from the IGM
+    params : list
+        The cosmic gas parameters [figm, fx]
+    TNGparams : array
+        The TNG300 parameters for the logNormal distribution in DMhalo and DMigm
+    figm_baseline : float
+        The fiducial value of the IGM baryon fraction from the baseline sim
+    fx_baseline : float
+        The fiducial value of the halo baryon fraction from the baseline sim
+    
+    Returns:
+    --------
+    The probability of the cosmic DM contribution for that DMhalo and DMigm and set of params
+    """
     x, y = dmhalo, dmigm
     figm, fx = params
     A, mu_x, mu_y, sigma_x, sigma_y, rho = TNGparams
-    mu_y += jnp.log(figm / figmTNG)
-    mu_x += jnp.log(fx / fxTNG)
+    mu_y += jnp.log(figm / figm_baseline)
+    mu_x += jnp.log(fx / fx_baseline)
     term1 = -((jnp.log(x) - mu_x)**2 / sigma_x**2 + (jnp.log(y) - mu_y)**2 / sigma_y**2)
     term2 = 2 * rho * (jnp.log(x) - mu_x) * (jnp.log(y) - mu_y) / (sigma_x * sigma_y)
     B = (2 * jnp.pi * sigma_x * sigma_y * x * y * jnp.sqrt(1 - rho**2))
@@ -111,14 +147,43 @@ def pdm_cosmic(dmhalo, dmigm, params, TNGparams):
 
 @jit
 def pdm_product_numerical(dmhalo, dmigm, dmexgal, zfrb, params, TNGparams):
+    """ Compute the product of the cosmic and host DM PDFs. 
+    This will serve the integrand for the likelihood function.
+
+    Parameters:
+    -----------
+    dmhalo : meshgrid
+        Values of DM halo over which to compute the PDF
+    dmigm : meshgrid
+        Values of DM IGM over which to compute the PDF
+    dmexgal : meshgrid
+        Values of total exgalactic DM over which to compute the PDF
+    zfrb : float
+        Redshift of the FRB
+    params : list
+        [figm, fx, mu, sigma]
+        figm - fraction of baryons in IGM
+        fx - fraction of baryons in halos
+        mu, sigma - parameters for the log-normal host distribution 
+    TNGparams : array
+        The TNG300 parameters for the logNormal distribution in DMhalo and DMigm
+
+    Returns:
+    --------
+    The product of the cosmic and host DM PDFs
+    """
     figm, fx, mu, sigma = params
     dmhost = dmexgal - dmhalo - dmigm
-    pcosmic = vmap(pdm_cosmic, in_axes=(0, 0, None, None))(dmhalo, dmigm, (figm, fx), TNGparams)
+    pcosmic = vmap(pdm_cosmic, 
+                   in_axes=(0, 0, None, None))(dmhalo, dmigm, (figm, fx), 
+                                               TNGparams)
     phost = vmap(pdmhost, in_axes=(0, None, None))(dmhost * (1+zfrb), mu, sigma)
     return pcosmic * phost, dmhost
 
 @jit
 def pdm_product_numerical_cosmic(dmigm, dmexgal, zfrb, params, TNGparams):
+    """ Compute the PDF integral of the cosmic DM.
+    """
     figm, fx, mu, sigma = params
     dmhalo = dmexgal - dmigm
     pcosmic = vmap(pdm_cosmic, in_axes=(0, 0, None, None))(dmhalo, dmigm, (figm, fx), TNGparams)
@@ -133,7 +198,30 @@ def pdmhost(dmhost, mu, sigma):
 
 def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey, 
                        dmigm, dmexgal, zex, tngparams_arr):
-    """ Log likelihood for all FRBs
+    """ Log likelihood summed over all FRBs in the dataset.
+
+    Parameters:
+    -----------
+    params : list
+        [figm, fx, mu, sigma]
+        figm - fraction of baryons in IGM
+        fx - fraction of baryons in halos
+        mu, sigma - parameters for the log-normal host distribution
+    zfrb : array
+        Redshifts of the FRBs in sample
+    dmfrb : array
+        DM of the FRBs in sample
+    dmhalo : meshgrid
+        Values of DM halo over which to compute the PDF
+    dmmax_survey : array
+        Maximum DM of the survey that detected the FRB
+    dmigm : meshgrid
+        Values of DM IGM over which to compute the PDF
+    dmexgal : meshgrid
+        Values of total exgalactic DM over which to compute the PDF
+    zex : array
+        Redshifts at which to compute the PDF
+    tngparams_arr : array
     """
     nz, ndm = len(zex), len(dmhalo)
     dmex = dmexgal[0,0]
@@ -141,7 +229,9 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
     P = np.empty((ndm, nz))
 
     # Iterate over all redshifts and compute the likelihood
-    # in DM at that redshift for those baryon parameters
+    # in DM at that redshift for those baryon parameters.
+    # This method avoids computing the likelihood multiple times 
+    # for each FRB. 
     for ii in range(len(zex)):
 #        t0=time.time()
         pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, 
