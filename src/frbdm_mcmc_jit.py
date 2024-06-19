@@ -20,7 +20,6 @@ import warnings
 import emcee
 from scipy.integrate import quad
 from scipy.interpolate import UnivariateSpline
-import jax.numpy as jnp
 from tqdm import tqdm
 from astropy.cosmology import Planck18 as P
 from scipy.integrate import quad
@@ -107,7 +106,7 @@ def generate_TNGparam_arr(zfrb):
         sigigmi = sigigm(zz).ravel()[0]
         rhoi = rho(zz).ravel()[0]
 
-        tngparams_arr[xx] = np.array([Ai, mu_dmxi, mu_dmigmi, sigxi, sigigmi, rhoi])
+        tngparams_arr[ii] = np.array([Ai, mu_dmxi, mu_dmigmi, sigxi, sigigmi, rhoi])
 
     return tngparams_arr
 
@@ -184,7 +183,7 @@ def pdm_product_numerical(dmhalo, dmigm, dmexgal, zfrb, params, TNGparams):
 def pdm_product_numerical_cosmic(dmigm, dmexgal, zfrb, params, TNGparams):
     """ Compute the PDF integral of the cosmic DM.
     """
-    figm, fx, mu, sigma = params
+    figm, fx = params
     dmhalo = dmexgal - dmigm
     pcosmic = vmap(pdm_cosmic, in_axes=(0, 0, None, None))(dmhalo, dmigm, (figm, fx), TNGparams)
     return pcosmic
@@ -237,13 +236,15 @@ def log_likelihood_all(params, zfrb, dmfrb, dmhalo, dmmax_survey,
     # This method avoids computing the likelihood multiple times 
     # for each FRB. 
     for ii in range(len(zex)):
-#        t0=time.time()
         pp, dmhost = pdm_product_numerical(dmhalo, dmigm, dmexgal, 
-                                           zex[ii], params, tngparams_arr[ii])
-#        print("a",time.time()-t0)
+                                           zex[ii], params, 
+                                           tngparams_arr[ii])
+        # Convert back to numpy arrays
         pp = np.array(pp)
         dmhost = np.array(dmhost)
         
+        # Sum the likelihoods over the allowed values of host DM 
+        # (DMexgal - DMhalo - DMigm)
         for kk, dd in enumerate(dmex):
             p, dh = pp[:, :, kk], dmhost[:, :, kk]
             P[kk, ii] = np.nansum(p[dh > 0], axis=-1)
@@ -372,6 +373,24 @@ def get_params_zhang(zfrb, A_spl, C0_spl, sigmaDM_spl):
     return A, C0, sigma
 
 def main(data, param_dict, mcmc_filename='test.h5'):
+    """
+    Main function to run the MCMC chain. This function
+    will run the MCMC chain and save the results to an
+    HDF5 file.
+
+    Parameters:
+    -----------
+    data : tuple
+        Tuple containing the redshifts and DMs of the FRBs
+    param_dict : dict
+        Dictionary containing the parameters for the MCMC chain
+    mcmc_filename : str
+        Filename to save the MCMC chain to
+
+    Returns:
+    --------
+    None
+    """
     
     zfrb, dmfrb = data
     prior_dict = param_dict['prior_dict']
@@ -410,7 +429,6 @@ def main(data, param_dict, mcmc_filename='test.h5'):
         print("Starting %s from scratch \n" % mcmc_filename)
         backend = emcee.backends.HDFBackend(mcmc_filename)
         backend.reset(nwalkers, ndim)
-
 
     with Pool(32) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior,
@@ -489,7 +507,7 @@ if __name__ == '__main__':
                 'mumin': 0.0,
                 'mumax': 7.0,
                 'sigmin': 0.1,
-                'sigmax': 1.0,
+                'sigmax': 3.0,
                 'fcos_total_max': 1.2}
     
     # Parameters for the MCMC chain
@@ -508,7 +526,6 @@ if __name__ == '__main__':
                   'dmmax_survey' : dmmax_survey,
                   'pguess' : (figm_start, fX_start, mu_start, sigma_start),
                   'prior_dict' : prior_dict}
-                  }
     
     mcmc_filename = datadir + "emceechain_%s" % ftoken_output
     data_filename = datadir + "data_%s" % ftoken_output
