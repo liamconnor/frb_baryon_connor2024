@@ -4,5 +4,4 @@
 *.pdf
 *.png
 data/*
-publicdata/*
 __*
