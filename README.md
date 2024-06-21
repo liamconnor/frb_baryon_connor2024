@@ -16,19 +16,25 @@ source baryon_env/bin/activate
 pip install -r requirements.txt
 ```
 
-# Or if you want to use Poetry,
+Or if you want to use Poetry,
 
+```bash
 pip install poetry
+```
 
 alternatively, 
 
+```bash
 curl -sSL https://install.python-poetry.org | python3 -
 
 poetry install
+```
 
 Now to enter the poetry environment, do
 
+```bash
 poetry shell
+```
 
 ## src/frbdm_mcmc_jit.py
 This program has code for JAX-compiled MCMC fitting code using emcee. It's still terribly slow due to computing a 2D integral for each new parameter, so if anybody wants to submit a PR to speed things up please do! That said, I never got it running on GPU, so maybe it just requires accelerated hardware.
