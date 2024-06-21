@@ -26,7 +26,12 @@ alternatively,
 
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
+```
 
+To install this particular poetry package you would do 
+
+```bash
+frb_baryon_connor2024
 poetry install
 ```
 
@@ -35,6 +40,8 @@ Now to enter the poetry environment, do
 ```bash
 poetry shell
 ```
+
+You should now be able to run the code.
 
 ## src/frbdm_mcmc_jit.py
 This program has code for JAX-compiled MCMC fitting code using emcee. It's still terribly slow due to computing a 2D integral for each new parameter, so if anybody wants to submit a PR to speed things up please do! That said, I never got it running on GPU, so maybe it just requires accelerated hardware.
