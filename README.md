@@ -2,7 +2,26 @@
 
 This repository hosts code and data associated with the publication 
 Connor et al. (2024). It is a reproduction package of the 
-analysis and figures in that work.
+analysis and figures in that work. 
+
+## installation instructions
+
+You can install in a virtual environment or with Poetry, which is a dependency management and packaging tool for Python. I usually use Poetry.
+
+python3 -m venv baryon_env
+source baryon_env/bin/activate
+pip install -r requirements.txt
+
+Or if you want to use Poetry,
+
+pip install poetry
+
+alternatively, 
+
+curl -sSL https://install.python-poetry.org | python3 -
+
+poetry install
+poetry shell
 
 ## src/frbdm_mcmc_jit.py
 This program has code for JAX-compiled MCMC fitting code using emcee. It's still terribly slow due to computing a 2D integral for each new parameter, so if anybody wants to submit a PR to speed things up please do! That said, I never got it running on GPU, so maybe it just requires accelerated hardware.
