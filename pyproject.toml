@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "baryon-paper"
+version = "0.1.0"
+description = ""
+authors = ["Liam Connor"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+emcee = "^3.1.6"
+h5py = "^3.11.0"
+pandas = "^2.2.2"
+scipy = "^1.13.1"
+jax = "^0.4.29"
+jaxlib = "^0.4.29"
+tqdm = "^4.66.4"
+astropy = "^6.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
