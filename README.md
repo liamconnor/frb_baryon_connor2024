@@ -31,7 +31,7 @@ curl -sSL https://install.python-poetry.org | python3 -
 To install this particular poetry package you would do 
 
 ```bash
-frb_baryon_connor2024
+cd frb_baryon_connor2024
 poetry install
 ```
 
