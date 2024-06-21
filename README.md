@@ -50,13 +50,18 @@ Example usage:
 
 To run on all FRBs in the dataset with no selection criteria
 
+```bash
 python frbdm_mcmc_jit.py 
+```
 
 To run only on DSA-110 discovered FRBs beyond z=0.0125 for 2000 MCMC steps
 
+```bash
 python frbdm_mcmc_jit.py --zmin 0.0125 --nmcmc 2000 --tel dsa-110
+```
 
 To run on all FRBs between 0.25 < z < 0.50 excluding, say, FRB20200430A
 
+```bash
 python frbdm_mcmc_jit.py --zmin 0.25 --zmax 0.50 --nmcmc 2000 --tel all --exclude FRB20200430A
-
+```
