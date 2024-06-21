@@ -8,6 +8,7 @@ analysis and figures in that work.
 
 You can install in a virtual environment or with Poetry, which is a dependency management and packaging tool for Python. I usually use Poetry.
 
+```bash
 python3 -m venv baryon_env
 
 source baryon_env/bin/activate
