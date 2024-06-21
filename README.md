@@ -9,7 +9,9 @@ analysis and figures in that work.
 You can install in a virtual environment or with Poetry, which is a dependency management and packaging tool for Python. I usually use Poetry.
 
 python3 -m venv baryon_env
+
 source baryon_env/bin/activate
+
 pip install -r requirements.txt
 
 Or if you want to use Poetry,
@@ -21,6 +23,9 @@ alternatively,
 curl -sSL https://install.python-poetry.org | python3 -
 
 poetry install
+
+Now to enter the poetry environment, do
+
 poetry shell
 
 ## src/frbdm_mcmc_jit.py
