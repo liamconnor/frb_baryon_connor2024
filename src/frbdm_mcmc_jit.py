@@ -82,7 +82,7 @@ def generate_TNGparam_arr(zfrb):
     [A, mu_dmx, mu_dmigm, sigma_dmx, sigma_dmigm, rho] which corresponds to the 
     parameters of the logNormal distribution in DM halo and DM IGM.
     """
-    TNGfits = np.load('/home/connor/software/baryon_paper/src/tng_params_new.npy')
+    TNGfits = np.load('../src/tng_params_new.npy')
     nfrb = len(zfrb)
     arr = TNGfits
     tngparams_arr = np.zeros([nfrb, 6])
@@ -468,7 +468,8 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     datadir = '../data/'
-    fnfrb = datadir + 'naturesample_april2024.csv'
+    fnfrb = datadir + 'frbsample_connor0924.csv'
+    
     zmin_sample = args.zmin
     zmax_sample = args.zmax
     telecopes = args.telescope
@@ -481,7 +482,7 @@ if __name__ == '__main__':
         print(exclude_frbs)
 
     nmcmc_steps = args.nmcmc
-    ftoken_output = args.fnout + 'june19_zmin%0.2f_zmax%0.2f_tel%s_exclude%s.h5' % \
+    ftoken_output = args.fnout + 'results_zmin%0.2f_zmax%0.2f_tel%s_exclude%s.h5' % \
                         (zmin_sample, zmax_sample, telecopes, args.exclude)
 
     frb_catalog = read_frb_catalog(fnfrb, zmin=zmin_sample, zmax=zmax_sample, 
@@ -513,7 +514,7 @@ if __name__ == '__main__':
     # Parameters for the MCMC chain
     param_dict = {'dmmin': 0, 
                   'dmmax': 2000., 
-                  'ndm': 100,
+                  'ndm': 150,
                   'zmin': 0, 
                   'zmax': 1.5, 
                   'nz': 100,
