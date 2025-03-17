@@ -5,3 +5,9 @@
 *.png
 data/*
 __*
+bin/
+lib/
+lib64/
+poetry.lock
+pyvenv.cfg
+lib64
