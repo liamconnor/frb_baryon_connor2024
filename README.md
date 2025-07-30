@@ -27,7 +27,7 @@ Next, we can plot the empirical probability distributions.
 fig = plt.figure(figsize=(12,5))
 plt.subplot(121)
 plt.imshow(np.log10(prob_dmex_z[::-1] + 1e-32), 
-       extent=[zex.min(), zex.max(), dmex.min(), dmex.max()],
+       extent=[redshift.min(), redshift.max(), dmex.min(), dmex.max()],
        vmax=-0.75, vmin=-5,
       aspect='auto', cmap='afmhot', alpha=0.75)
 plt.colorbar(label=r'$\log(P(DM_{ex} | z))$', )
@@ -37,7 +37,7 @@ plt.title('Extragalactic DM', fontsize=18, color='darkorange')
 
 plt.subplot(122)
 plt.imshow(np.log10(prob_dmcos_z[::-1] + 1e-32), 
-           extent=[zex.min(), zex.max(), dmex.min(), dmex.max()],
+           extent=[redshift.min(), redshift.max(), dmex.min(), dmex.max()],
            vmax=-0.75, vmin=-5,
            aspect='auto', cmap='magma', alpha=0.75)
 plt.colorbar(label=r'$\log(P(DM_{cos} | z))$')
