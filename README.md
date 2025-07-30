@@ -46,6 +46,7 @@ plt.ylabel('DM (pc/cc)')
 plt.tight_layout()
 plt.title('Cosmic DM', fontsize=18, color='purple')
 plt.savefig('example_pdfs.png')
+plt.show()
 ```
 
 That should produce:
