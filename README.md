@@ -34,7 +34,7 @@ plt.xlabel('Redshift')
 plt.ylabel('DM (pc/cc)')
 plt.title('Extragalactic DM', fontsize=18, color='darkorange')
 
-subplot(122)
+plt.subplot(122)
 plt.imshow(np.log10(prob_dmcos_z[::-1] + 1e-32), 
            extent=[zex.min(), zex.max(), dmex.min(), dmex.max()],
            vmax=-0.75, vmin=-5,
@@ -44,6 +44,7 @@ plt.xlabel('Redshift')
 plt.ylabel('DM (pc/cc)')
 plt.tight_layout()
 plt.title('Cosmic DM', fontsize=18, color='purple')
+plt.savefig('example_pdfs.png')
 ```
 
 That should produce:
