@@ -1,5 +1,5 @@
 This repository hosts code and data associated with the publication 
-Connor et al. (2024) on partitioning the Universe's baryons with fast radio bursts. It is a reproduction package of the 
+Connor et al. (2025) on partitioning the Universe's baryons with fast radio bursts. It is a reproduction package of the 
 analysis and figures in that work. 
 
 ##
