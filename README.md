@@ -3,7 +3,7 @@ Connor et al. (2024) on partitioning the Universe's baryons with fast radio burs
 analysis and figures in that work. 
 
 ##
-We have fit Macquart PDFs for both extragalactic DM (host + cosmic) and cosmic only DM (IGM and intervening halos). 
+We have fit Macquart PDFs for both extragalactic DM (host + cosmic) and cosmic only DM (IGM and intervening halos). These arrays are P(DM | z), not 2D PDFs. 
 
 ```
 f = h5py.File("pdm_connor_etal_2025.h5", "r")
