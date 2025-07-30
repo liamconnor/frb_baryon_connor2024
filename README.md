@@ -48,7 +48,7 @@ plt.title('Cosmic DM', fontsize=18, color='purple')
 
 That should produce:
 
-![My Figure](data/example_pdfs.pdf)
+![My Figure](data/example_pdfs.png)
 
 ## installation instructions
 
