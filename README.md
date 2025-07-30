@@ -20,6 +20,8 @@ dmex = f["DM"][:]
 f.close()
 ```
 
+Next, we can plot the empirical probability distributions.  
+
 ```
 fig = plt.figure(figsize=(12,5))
 plt.subplot(121)
@@ -43,6 +45,10 @@ plt.ylabel('DM (pc/cc)')
 plt.tight_layout()
 plt.title('Cosmic DM', fontsize=18, color='purple')
 ```
+
+That should produce:
+
+![My Figure](data/example_pdfs.pdf)
 
 ## installation instructions
 
