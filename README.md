@@ -2,6 +2,42 @@ This repository hosts code and data associated with the publication
 Connor et al. (2024) on partitioning the Universe's baryons with fast radio bursts. It is a reproduction package of the 
 analysis and figures in that work. 
 
+##
+We have fit Macquart PDFs for both extragalactic DM (host + cosmic) and cosmic only DM (IGM and intervening halos). 
+
+```
+f = h5py.File("pdm_connor_etal_2025.h5", "r")
+
+prob_dmcos_z = f["prob_dmcos_z"][:]
+prob_dmex_z = f["prob_dmex_z"][:]
+redshift = f["redshift"][:]
+dmex = f["DM"][:]
+
+f.close()
+
+fig = plt.figure(figsize=(12,5))
+plt.subplot(121)
+plt.imshow(np.log10(prob_dmex_z[::-1] + 1e-32), 
+       extent=[zex.min(), zex.max(), dmex.min(), dmex.max()],
+       vmax=-0.75, vmin=-5,
+      aspect='auto', cmap='afmhot', alpha=0.75)
+plt.colorbar(label=r'$\log(P(DM_{ex} | z))$', )
+plt.xlabel('Redshift')
+plt.ylabel('DM (pc/cc)')
+plt.title('Extragalactic DM', fontsize=18, color='darkorange')
+
+subplot(122)
+plt.imshow(np.log10(prob_dmcos_z[::-1] + 1e-32), 
+           extent=[zex.min(), zex.max(), dmex.min(), dmex.max()],
+           vmax=-0.75, vmin=-5,
+           aspect='auto', cmap='magma', alpha=0.75)
+plt.colorbar(label=r'$\log(P(DM_{cos} | z))$')
+plt.xlabel('Redshift')
+plt.ylabel('DM (pc/cc)')
+plt.tight_layout()
+plt.title('Cosmic DM', fontsize=18, color='purple')
+```
+
 ## installation instructions
 
 You can install in a virtual environment or with Poetry, which is a dependency management and packaging tool for Python. I usually use Poetry.
