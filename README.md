@@ -8,6 +8,7 @@ We have fit Macquart PDFs for both extragalactic DM (host + cosmic) and cosmic o
 Start by reading in the data:
 
 ```
+import numpy as np
 import h5py
 import matplotlib.pylab as plt
 
