@@ -51,7 +51,7 @@ plt.show()
 
 That should produce:
 
-![My Figure](data/example_pdfs.png)
+![My Figure](data/example_pdfs.pdf)
 
 ## installation instructions
 
